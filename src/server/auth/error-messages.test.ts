@@ -5,6 +5,7 @@ describe("signupErrorMessage", () => {
   it("distinguishes duplicate users from configuration failures", () => {
     expect(signupErrorMessage({ code: "USER_ALREADY_EXISTS" })).toBe("Аккаунт с таким email уже существует");
     expect(signupErrorMessage({ code: "INVALID_CALLBACK_URL" })).toBe("Домен приложения не разрешён в настройках Neon Auth");
+    expect(signupErrorMessage({ code: "feature_not_supported", message: "Invalid origin" })).toBe("Домен приложения не разрешён в настройках Neon Auth");
     expect(signupErrorMessage({ code: "EMAIL_SIGNUP_DISABLED" })).toBe("Регистрация по email отключена в настройках Neon Auth");
   });
 
