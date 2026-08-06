@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { profiles } from "@/server/db/schema";
 import { clearSession, getAppSession, getAuthIdentity, setDemoSession } from "./session";
+import { signupErrorMessage } from "./error-messages";
 
 const loginSchema = z.object({ email: z.email(), password: z.string().min(8).max(100) });
 
@@ -64,11 +65,18 @@ export async function registerAction(_state: RegisterState, formData: FormData):
       name: parsed.data.name,
       email: parsed.data.email.toLowerCase(),
       password: parsed.data.password,
-      callbackURL: "/onboarding",
     });
-    if (result.error || !result.data?.user) return { error: "Не удалось создать аккаунт. Возможно, email уже используется" };
+    if (result.error) {
+      console.error("Neon Auth signup rejected", { code: result.error.code, message: result.error.message });
+      return { error: signupErrorMessage(result.error) };
+    }
+    if (!result.data?.user) {
+      console.error("Neon Auth signup returned no user");
+      return { error: "Neon Auth не вернул созданного пользователя" };
+    }
     if (!result.data.user.emailVerified) return { ok: true, email: result.data.user.email };
-  } catch {
+  } catch (error) {
+    console.error("Neon Auth signup request failed", error instanceof Error ? error.message : "Unknown error");
     return { error: "Сервис регистрации временно недоступен" };
   }
 
