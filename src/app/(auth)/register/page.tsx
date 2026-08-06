@@ -10,11 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function RegisterPage() {
   const session = await getAppSession();
   if (session) redirect(session.role === "student" ? "/student" : "/dashboard");
-  if (await getAuthIdentity()) redirect("/onboarding");
+  const identity = await getAuthIdentity();
+  if (identity) redirect(identity.emailVerified ? "/onboarding" : "/verify-email");
 
   return <main className="login-page"><section className="login-card" aria-labelledby="register-heading">
     <div className="login-brand"><Link href="/login" className="brand"><span className="brand-mark"><BookOpenCheck size={21} /></span><span>Перекличка</span></Link><ThemeToggle /></div>
-    <h1 id="register-heading">Создайте аккаунт</h1><p>После подтверждения email вы настроите свою учебную группу</p>
+    <h1 id="register-heading">Создайте аккаунт</h1><p>После регистрации введите код из письма и настройте учебную группу</p>
     <RegisterForm />
     <p className="auth-switch">Уже есть аккаунт? <Link href="/login">Войти</Link></p>
   </section></main>;

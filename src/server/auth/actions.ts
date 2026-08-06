@@ -1,17 +1,19 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { profiles } from "@/server/db/schema";
 import { clearSession, getAppSession, getAuthIdentity, setDemoSession } from "./session";
-import { signupErrorMessage } from "./error-messages";
+import { isEmailNotVerifiedError, isExistingUserError, signupErrorMessage } from "./error-messages";
+import { setPendingVerificationEmail } from "./pending-verification";
 
 const loginSchema = z.object({ email: z.email(), password: z.string().min(8).max(100) });
 
-export type LoginState = { error?: string };
-export type RegisterState = { error?: string; ok?: boolean; email?: string };
+export type LoginState = { error?: string; verificationPending?: boolean };
+export type RegisterState = { error?: string };
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -33,7 +35,13 @@ export async function loginAction(_state: LoginState, formData: FormData): Promi
     } else {
       const { neonAuth } = await import("./neon");
       const result = await neonAuth.signIn.email(parsed.data);
-      if (result.error) return { error: "Неверный email или пароль" };
+      if (result.error) {
+        if (isEmailNotVerifiedError(result.error)) {
+          await setPendingVerificationEmail(parsed.data.email);
+          return { error: "Email ещё не подтверждён", verificationPending: true };
+        }
+        return { error: "Неверный email или пароль" };
+      }
     }
   } catch {
     return { error: "Сервис временно недоступен. Попробуйте ещё раз" };
@@ -59,6 +67,7 @@ export async function registerAction(_state: RegisterState, formData: FormData):
   });
   if (!parsed.success) return { error: "Проверьте имя, email и совпадение паролей" };
 
+  let destination = "/onboarding";
   try {
     const { neonAuth } = await import("./neon");
     const result = await neonAuth.signUp.email({
@@ -67,20 +76,33 @@ export async function registerAction(_state: RegisterState, formData: FormData):
       password: parsed.data.password,
     });
     if (result.error) {
-      console.error("Neon Auth signup rejected", { code: result.error.code, message: result.error.message });
+      if (isExistingUserError(result.error)) {
+        return { error: "Аккаунт с таким email уже существует. Войдите с указанным при регистрации паролем." };
+      }
+      const requestHeaders = await headers();
+      console.error("Neon Auth signup rejected", {
+        code: result.error.code,
+        message: result.error.message,
+        origin: requestHeaders.get("origin"),
+        host: requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host"),
+        protocol: requestHeaders.get("x-forwarded-proto"),
+      });
       return { error: signupErrorMessage(result.error) };
     }
     if (!result.data?.user) {
       console.error("Neon Auth signup returned no user");
       return { error: "Neon Auth не вернул созданного пользователя" };
     }
-    if (!result.data.user.emailVerified) return { ok: true, email: result.data.user.email };
+    if (!result.data.user.emailVerified) {
+      await setPendingVerificationEmail(result.data.user.email);
+      destination = "/verify-email?sent=1";
+    }
   } catch (error) {
     console.error("Neon Auth signup request failed", error instanceof Error ? error.message : "Unknown error");
     return { error: "Сервис регистрации временно недоступен" };
   }
 
-  redirect("/onboarding");
+  redirect(destination);
 }
 
 export async function logoutAction() {

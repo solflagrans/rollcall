@@ -85,6 +85,13 @@ textarea.input { min-height:88px; resize:vertical; }
 .auth-notice { display:flex; flex-direction:column; align-items:flex-start; gap:12px; padding:16px; border-radius:11px; background:var(--primary-soft); color:var(--text); }
 .auth-notice h1,.auth-notice p { margin:0; }
 .auth-notice p { color:var(--muted); line-height:1.55; }
+.login-card>.auth-notice { margin-bottom:16px; }
+.verification-stack { display:flex; flex-direction:column; gap:16px; }
+.verification-email { margin:0!important; color:var(--muted); font-size:14px; }
+.verification-code { font-size:24px; letter-spacing:.24em; font-variant-numeric:tabular-nums; }
+.verification-actions { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.link-button { padding:0; border:0; background:transparent; color:var(--primary); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+.link-button:disabled { opacity:.55; cursor:not-allowed; }
 .onboarding-card { width:min(680px,100%); }
 .onboarding-form { display:flex; flex-direction:column; gap:18px; }
 .full-field { grid-column:1/-1; }

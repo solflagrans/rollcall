@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Eye, EyeOff, LoaderCircle, UserPlus } from "lucide-react";
 import { registerAction, type RegisterState } from "@/server/auth/actions";
@@ -10,8 +9,6 @@ const initialState: RegisterState = {};
 export function RegisterForm() {
   const [state, action, pending] = useActionState(registerAction, initialState);
   const [showPassword, setShowPassword] = useState(false);
-
-  if (state.ok) return <div className="auth-notice" role="status"><strong>Проверьте почту</strong><p>Мы отправили письмо на {state.email}. Подтвердите email, затем войдите и завершите создание группы.</p><Link className="button primary" href="/login">Перейти ко входу</Link></div>;
 
   return <form action={action} className="login-form">
     <div className="field"><label htmlFor="register-name">Имя и фамилия</label><input className="input" id="register-name" name="name" autoComplete="name" minLength={2} maxLength={120} required /></div>
