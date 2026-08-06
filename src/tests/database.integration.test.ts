@@ -11,8 +11,8 @@ describe("lesson transaction integration", () => {
       INSERT INTO profiles(id,auth_user_id,email,display_name) VALUES
         ('00000000-0000-4000-8000-000000000001','admin','a@test.dev','Admin'),
         ('00000000-0000-4000-8000-000000000002','student','s@test.dev','Student');
-      INSERT INTO groups(id,name) VALUES ('10000000-0000-4000-8000-000000000001','Test');
-      INSERT INTO academic_periods(id,group_id,name,starts_on,ends_on) VALUES ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Test period','2026-01-01','2026-12-31');
+      INSERT INTO groups(id,name,period_system) VALUES ('10000000-0000-4000-8000-000000000001','Test','semester');
+      INSERT INTO academic_periods(id,group_id,period_number,starts_on,ends_on) VALUES ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',1,'2026-01-01','2026-12-31');
       UPDATE groups SET active_period_id='20000000-0000-4000-8000-000000000001';
       INSERT INTO memberships(id,group_id,profile_id,role,display_name) VALUES
         ('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','headman','Admin'),

@@ -80,6 +80,15 @@ textarea.input { min-height:88px; resize:vertical; }
 .login-form { display:flex; flex-direction:column; gap:16px; }
 .password-wrap { position:relative; }.password-wrap .input{padding-right:48px}.password-wrap button{position:absolute;right:2px;top:2px;border:0;background:transparent}
 .demo-box { margin-top:20px; padding:12px 14px; background:var(--primary-soft); border-radius:9px; color:var(--muted); font-size:12px; line-height:1.65; }
+.auth-switch { margin:20px 0 0!important; text-align:center; color:var(--muted); font-size:13px; }
+.auth-switch a { color:var(--primary); font-weight:700; }
+.auth-notice { display:flex; flex-direction:column; align-items:flex-start; gap:12px; padding:16px; border-radius:11px; background:var(--primary-soft); color:var(--text); }
+.auth-notice h1,.auth-notice p { margin:0; }
+.auth-notice p { color:var(--muted); line-height:1.55; }
+.onboarding-card { width:min(680px,100%); }
+.onboarding-form { display:flex; flex-direction:column; gap:18px; }
+.full-field { grid-column:1/-1; }
+.field-hint { color:var(--muted); font-size:12px; }
 .mobile-nav { display:none; }
 .mobile-cards { display:none; }
 .filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }

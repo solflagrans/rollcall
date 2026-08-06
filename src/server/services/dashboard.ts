@@ -1,6 +1,6 @@
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/server/db";
-import { academicPeriods, attendance, lessons, memberships, profiles, subjects } from "@/server/db/schema";
+import { academicPeriods, attendance, groups, lessons, memberships, profiles, subjects } from "@/server/db/schema";
 import { calculateAttendance } from "@/features/statistics/domain";
 import type { AttendanceStatus } from "@/lib/constants";
 
@@ -15,7 +15,9 @@ export async function getGroupDashboard(groupId: string) {
     ...lesson,
     stats: calculateAttendance(marks.filter((mark) => mark.lessonId === lesson.id).map((mark) => mark.status)),
   }));
-  const [period] = await db.select().from(academicPeriods).where(and(eq(academicPeriods.groupId, groupId), eq(academicPeriods.isActive, true))).limit(1);
+  const [period] = await db.select({ number: academicPeriods.number, system: groups.periodSystem, startsOn: academicPeriods.startsOn, endsOn: academicPeriods.endsOn })
+    .from(academicPeriods).innerJoin(groups, eq(groups.id, academicPeriods.groupId))
+    .where(and(eq(academicPeriods.groupId, groupId), eq(academicPeriods.isActive, true))).limit(1);
   const studentMarks = lessonIds.length ? await db.select({ studentId: attendance.studentMembershipId, status: attendance.status }).from(attendance).where(inArray(attendance.lessonId, lessonIds)) : [];
   const byStudent = new Map<string, AttendanceStatus[]>();
   for (const mark of studentMarks) byStudent.set(mark.studentId, [...(byStudent.get(mark.studentId) ?? []), mark.status]);

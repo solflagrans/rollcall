@@ -4,13 +4,14 @@ import { requireAppSession } from "@/server/auth/session";
 import { getGroupDashboard } from "@/server/services/dashboard";
 import { formatDate } from "@/lib/utils";
 import { lessonTypeLabels } from "@/lib/constants";
+import { formatPeriodLabel } from "@/features/periods/domain";
 
 export default async function DashboardPage() {
   const session = await requireAppSession();
   const data = await getGroupDashboard(session.groupId);
   const today = new Intl.DateTimeFormat("ru-RU", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   return <>
-    <header className="page-header"><div><span className="eyebrow">{data.period?.name ?? "Учебный период"}</span><h1>{session.groupName}</h1><p>Сегодня {today}</p></div><Link href="/lessons/new" className="button primary"><Plus size={18} /><span>Отметить посещаемость</span></Link></header>
+    <header className="page-header"><div><span className="eyebrow">{data.period ? formatPeriodLabel(data.period.system, data.period.number) : "Учебный период"}</span><h1>{session.groupName}</h1><p>Сегодня {today}</p></div><Link href="/lessons/new" className="button primary"><Plus size={18} /><span>Отметить посещаемость</span></Link></header>
     <section className="grid stats-grid" aria-label="Сводная статистика">
       <Stat label="Занятий" value={data.totals.lessons} note="за текущий период" icon={<CalendarDays size={18} />} />
       <Stat label="Посещаемость" value={data.totals.percentage === null ? "—" : `${data.totals.percentage}%`} note="без уважительных причин" icon={<Percent size={18} />} />

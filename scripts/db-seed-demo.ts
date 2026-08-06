@@ -3,6 +3,15 @@ import { executeSql } from "../src/server/db/runtime";
 
 config({ path: ".env.local" });
 
+function assertLocalDemoEnvironment() {
+  if (process.env.DEMO_MODE !== "true") {
+    throw new Error("Demo seed is local-only. Set DEMO_MODE=true to use PGlite; Neon databases must start empty.");
+  }
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    throw new Error("Demo seed is disabled in production and on Vercel.");
+  }
+}
+
 const ids = {
   group: "10000000-0000-4000-8000-000000000001",
   period: "20000000-0000-4000-8000-000000000001",
@@ -57,12 +66,13 @@ const attendanceRows = Array.from({ length: 8 }, (_, lessonIndex) => students.ma
 }).join(",")).join(",");
 
 async function main() {
+  assertLocalDemoEnvironment();
   await executeSql(`
 BEGIN;
 TRUNCATE audit_logs, attendance, lessons, subjects, memberships, academic_periods, groups, profiles CASCADE;
 INSERT INTO profiles (id,auth_user_id,email,display_name) VALUES ${profiles};
-INSERT INTO groups (id,name,description) VALUES ('${ids.group}','ИВТ-21','Информационные системы и технологии');
-INSERT INTO academic_periods (id,group_id,name,starts_on,ends_on,is_active) VALUES ('${ids.period}','${ids.group}','Осенний семестр 2026','2026-09-01','2026-12-31',true);
+INSERT INTO groups (id,name,description,period_system) VALUES ('${ids.group}','ИВТ-21','Информационные системы и технологии','semester');
+INSERT INTO academic_periods (id,group_id,period_number,starts_on,ends_on,is_active) VALUES ('${ids.period}','${ids.group}',1,'2026-09-01','2026-12-31',true);
 UPDATE groups SET active_period_id='${ids.period}' WHERE id='${ids.group}';
 INSERT INTO memberships (id,group_id,profile_id,role,display_name) VALUES ${memberRows};
 INSERT INTO subjects (id,group_id,academic_period_id,name,short_name,teacher) VALUES ${subjectRows};

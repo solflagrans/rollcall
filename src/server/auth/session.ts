@@ -27,7 +27,14 @@ export async function clearSession() {
   await neonAuth.signOut();
 }
 
-async function authIdentity(): Promise<{ authUserId: string; email?: string } | null> {
+export type AuthIdentity = {
+  authUserId: string;
+  email?: string;
+  displayName?: string;
+  emailVerified: boolean;
+};
+
+async function loadAuthIdentity(): Promise<AuthIdentity | null> {
   if (process.env.DEMO_MODE === "true") {
     const raw = (await cookies()).get(COOKIE)?.value;
     if (!raw) return null;
@@ -35,13 +42,15 @@ async function authIdentity(): Promise<{ authUserId: string; email?: string } | 
     if (!authUserId || !supplied) return null;
     const expected = signature(authUserId);
     if (supplied.length !== expected.length || !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) return null;
-    return { authUserId };
+    return { authUserId, emailVerified: true };
   }
   const { neonAuth } = await import("./neon");
   const { data } = await neonAuth.getSession();
   if (!data?.user) return null;
-  return { authUserId: data.user.id, email: data.user.email };
+  return { authUserId: data.user.id, email: data.user.email, displayName: data.user.name, emailVerified: data.user.emailVerified };
 }
+
+export const getAuthIdentity = cache(loadAuthIdentity);
 
 export type AppSession = {
   profileId: string;
@@ -57,7 +66,7 @@ export type AppSession = {
 };
 
 async function loadAppSession(): Promise<AppSession | null> {
-  const identity = await authIdentity();
+  const identity = await getAuthIdentity();
   if (!identity) return null;
   const [row] = await db.select({
     profileId: profiles.id,
@@ -78,6 +87,7 @@ export const getAppSession = cache(loadAppSession);
 
 export async function requireAppSession() {
   const session = await getAppSession();
-  if (!session || !session.isActive) redirect("/login");
+  if (!session) redirect((await getAuthIdentity()) ? "/onboarding" : "/login");
+  if (!session.isActive) redirect("/login?error=inactive");
   return session;
 }

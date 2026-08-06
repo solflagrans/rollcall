@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("membership_role", ["headman", "deputy", "student"]);
 export const lessonTypeEnum = pgEnum("lesson_type", ["lecture", "practice", "laboratory"]);
 export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "late", "excused"]);
+export const periodSystemEnum = pgEnum("period_system", ["semester", "trimester", "quarter", "year"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -22,6 +23,7 @@ export const groups = pgTable("groups", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   description: text("description"),
+  periodSystem: periodSystemEnum("period_system").notNull(),
   activePeriodId: uuid("active_period_id"),
   isActive: boolean("is_active").default(true).notNull(),
   ...timestamps,
@@ -30,7 +32,7 @@ export const groups = pgTable("groups", {
 export const academicPeriods = pgTable("academic_periods", {
   id: uuid("id").primaryKey().defaultRandom(),
   groupId: uuid("group_id").notNull().references(() => groups.id),
-  name: text("name").notNull(),
+  number: integer("period_number").notNull(),
   startsOn: date("starts_on").notNull(),
   endsOn: date("ends_on").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
