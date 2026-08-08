@@ -3,6 +3,7 @@
 import {
   BookOpenCheck,
   BookOpenText,
+  ChartNoAxesCombined,
   ClipboardCheck,
   UsersRound,
 } from "lucide-react";
@@ -19,25 +20,43 @@ export function GroupSectionNav({
   placement?: "mobile" | "sidebar";
 }) {
   const pathname = usePathname();
-  const studentView = pathname.includes("/student/");
+  const studentRoute = pathname.match(
+    /^(\/groups\/[^/]+\/student\/[^/]+)\/(attendance|statistics)(?:\/|$)/,
+  );
+  const studentBasePath = studentRoute?.[1];
+  const studentSection = studentRoute?.[2];
   const membersSelected = pathname.includes("/members");
   const disciplinesSelected = pathname.includes("/disciplines");
+  const statisticsSelected = pathname.includes("/statistics");
 
-  const items = studentView
+  const items = studentBasePath
     ? [
         {
-          href: pathname,
+          href: `${studentBasePath}/attendance`,
           label: "Моя посещаемость",
-          selected: true,
+          selected: studentSection === "attendance",
           icon: ClipboardCheck,
+        },
+        {
+          href: `${studentBasePath}/statistics`,
+          label: "Статистика",
+          selected: studentSection === "statistics",
+          icon: ChartNoAxesCombined,
         },
       ]
     : [
         {
           href: `/groups/${groupId}`,
           label: "Журнал",
-          selected: !membersSelected && !disciplinesSelected,
+          selected:
+            !membersSelected && !disciplinesSelected && !statisticsSelected,
           icon: BookOpenCheck,
+        },
+        {
+          href: `/groups/${groupId}/statistics`,
+          label: "Статистика",
+          selected: statisticsSelected,
+          icon: ChartNoAxesCombined,
         },
         {
           href: `/groups/${groupId}/disciplines`,

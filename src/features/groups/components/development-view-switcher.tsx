@@ -28,9 +28,10 @@ export function DevelopmentViewSwitcher({
   const pathname = usePathname();
   const router = useRouter();
   const studentRoute = pathname.match(
-    /^\/groups\/[^/]+\/student\/([^/]+)\/attendance(?:\/|$)/,
+    /^\/groups\/[^/]+\/student\/([^/]+)\/(attendance|statistics)(?:\/|$)/,
   );
   const selectedMemberId = studentRoute?.[1];
+  const selectedStudentSection = studentRoute?.[2] ?? "attendance";
   const [studentChoicePath, setStudentChoicePath] = useState<string>();
   const studentChoicePending = studentChoicePath === pathname;
   const studentMode = Boolean(studentRoute) || studentChoicePending;
@@ -81,7 +82,7 @@ export function DevelopmentViewSwitcher({
                   const memberId = event.target.value;
                   if (memberId) {
                     router.push(
-                      `/groups/${groupId}/student/${memberId}/attendance`,
+                      `/groups/${groupId}/student/${memberId}/${selectedStudentSection}`,
                     );
                   }
                 }}

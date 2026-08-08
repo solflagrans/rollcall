@@ -111,7 +111,10 @@ function AttendanceRow({ item }: { item: AttendanceItem }) {
       >
         {formatCalendarDate(item.lessonDate)}
       </time>
-      <p className="col-start-1 row-start-2 min-w-0 text-sm leading-snug font-medium md:col-auto md:row-auto">
+      <p
+        className="col-start-1 row-start-2 min-w-0 truncate text-sm font-medium md:col-auto md:row-auto"
+        title={item.discipline.name}
+      >
         {item.discipline.name}
       </p>
       <p className="col-start-1 row-start-3 text-sm text-muted-foreground md:col-auto md:row-auto">

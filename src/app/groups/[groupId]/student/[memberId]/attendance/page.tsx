@@ -1,22 +1,12 @@
-import { redirect } from "next/navigation";
-
 import { PageHeader } from "@/features/groups/components/page-header";
 import { PeriodSwitcher } from "@/features/groups/components/period-switcher";
-import { getPeriodStatus } from "@/features/groups/domain/periods";
 import {
   formatCalendarDate,
   formatPeriodName,
 } from "@/features/groups/presentation/period-copy";
-import { redirectIfNonCanonical } from "@/features/groups/server/route-context";
 import { MemberAttendanceList } from "@/features/lessons/components/member-attendance-list";
-import { getMemberAttendancePeriodSelection } from "@/features/lessons/domain/member-attendance";
-import {
-  getCompletedMemberAttendance,
-  getMemberAttendancePeriodIds,
-} from "@/features/lessons/server/operations";
+import { requireStudentAttendanceRouteContext } from "@/features/lessons/server/route-context";
 import { formatMemberName } from "@/features/members/presentation/member-copy";
-import { requireStudentMemberRouteContext } from "@/features/members/server/route-context";
-import { getUserToday } from "@/features/preferences/server/user-time-zone";
 
 export const dynamic = "force-dynamic";
 
@@ -31,53 +21,21 @@ export default async function StudentAttendancePage({
   const query = await searchParams;
   const periodReference =
     typeof query.period === "string" ? query.period : undefined;
-  const { group, periods, member } = await requireStudentMemberRouteContext(
-    groupId,
-    memberId,
-  );
-  const [today, attendancePeriodIds] = await Promise.all([
-    getUserToday(),
-    getMemberAttendancePeriodIds(member.id),
-  ]);
-  const { availablePeriods, defaultPeriod } =
-    getMemberAttendancePeriodSelection(
-      periods,
-      new Set(attendancePeriodIds),
-      member.isActive,
-      today,
-    );
-  const requestedPeriod = periodReference
-    ? availablePeriods.find(
-        (period) =>
-          period.id === periodReference || period.publicId === periodReference,
-      )
-    : undefined;
-  const selectedPeriod = requestedPeriod ?? defaultPeriod;
-  const attendancePath = `/groups/${group.publicId}/student/${member.publicId}/attendance`;
-
-  if (periodReference && !requestedPeriod) redirect(attendancePath);
-
-  const canonicalPeriodQuery = requestedPeriod
-    ? `?period=${encodeURIComponent(requestedPeriod.publicId)}`
-    : "";
-  redirectIfNonCanonical(
-    [
-      { received: groupId, canonical: group.publicId },
-      { received: memberId, canonical: member.publicId },
-      ...(periodReference && requestedPeriod
-        ? [{ received: periodReference, canonical: requestedPeriod.publicId }]
-        : []),
-    ],
-    `${attendancePath}${canonicalPeriodQuery}`,
-  );
-
-  const attendance = selectedPeriod
-    ? await getCompletedMemberAttendance(selectedPeriod.id, member.id)
-    : [];
+  const {
+    group,
+    member,
+    availablePeriods,
+    selectedPeriod,
+    selectedPeriodStatus,
+    attendance,
+    sectionPath: attendancePath,
+  } = await requireStudentAttendanceRouteContext({
+    groupReference: groupId,
+    memberReference: memberId,
+    periodReference,
+    section: "attendance",
+  });
   const memberName = formatMemberName(member);
-  const selectedPeriodStatus = selectedPeriod
-    ? getPeriodStatus(selectedPeriod.startsOn, selectedPeriod.endsOn, today)
-    : undefined;
 
   return (
     <div className="space-y-8">
