@@ -1,7 +1,14 @@
 "use client";
 
 import { Ellipsis } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -15,9 +22,46 @@ export function ContextMenu({
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+    maxHeight: number;
+  }>();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
+    if (!trigger || !menu) return;
+
+    const margin = 16;
+    const gap = 8;
+    const triggerRect = trigger.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const maxHeight = Math.max(0, window.innerHeight - margin * 2);
+    const renderedHeight = Math.min(menuRect.height, maxHeight);
+    const maxLeft = Math.max(margin, window.innerWidth - menuRect.width - margin);
+    const left = Math.min(
+      Math.max(margin, triggerRect.right - menuRect.width),
+      maxLeft,
+    );
+    const below = triggerRect.bottom + gap;
+    const above = triggerRect.top - renderedHeight - gap;
+    const top =
+      below + renderedHeight <= window.innerHeight - margin
+        ? below
+        : Math.max(margin, above);
+
+    setPosition({ top, left, maxHeight });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, updatePosition]);
 
   useEffect(() => {
     if (!open) return;
@@ -33,11 +77,15 @@ export function ContextMenu({
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
     document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
       document.removeEventListener("pointerdown", closeOnOutsidePointer);
       document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open]);
+  }, [open, updatePosition]);
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -56,9 +104,11 @@ export function ContextMenu({
       </Button>
       {open ? (
         <div
+          ref={menuRef}
           id={menuId}
           role="menu"
-          className="absolute right-0 z-20 mt-2 w-max min-w-48 max-w-[calc(100vw-2rem)] rounded-md border bg-card p-1 shadow-sm"
+          style={position}
+          className={`fixed z-40 w-max min-w-48 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-card p-1 shadow-sm ${position ? "visible" : "invisible"}`}
         >
           {children(() => setOpen(false))}
         </div>

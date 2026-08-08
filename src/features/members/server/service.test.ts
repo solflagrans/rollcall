@@ -83,6 +83,16 @@ describe("MembersService", () => {
     service = new MembersService(repository);
   });
 
+  const insertHeadman = () =>
+    repository.insertMember(groupId, {
+      lastName: "Петров",
+      firstName: "Пётр",
+      email: "headman@example.com",
+      role: "headman",
+      isActive: true,
+      userId: "auth-user-1",
+    });
+
   it("requires one headman before regular members and protects that role", async () => {
     await expect(
       service.createMember(groupId, {
@@ -93,25 +103,14 @@ describe("MembersService", () => {
       }),
     ).rejects.toMatchObject({ code: "headman_required" });
 
-    const headman = await service.createHeadman(groupId, {
-      lastName: " Петров ",
-      firstName: " Пётр ",
-      email: "HEADMAN@EXAMPLE.COM",
-    });
+    const headman = await insertHeadman();
     expect(headman).toMatchObject({
       lastName: "Петров",
       email: "headman@example.com",
       role: "headman",
       isActive: true,
-      userAccountId: null,
+      userId: "auth-user-1",
     });
-    await expect(
-      service.createHeadman(groupId, {
-        lastName: "Сидоров",
-        firstName: "Сидор",
-        email: "",
-      }),
-    ).rejects.toMatchObject({ code: "headman_exists" });
     await expect(service.setMemberActive(groupId, headman.publicId, false)).rejects.toMatchObject({
       code: "headman_protected",
     });
@@ -121,11 +120,7 @@ describe("MembersService", () => {
   });
 
   it("normalizes and enforces unique non-empty email inside the group", async () => {
-    await service.createHeadman(groupId, {
-      lastName: "Петров",
-      firstName: "Пётр",
-      email: "",
-    });
+    await insertHeadman();
     await service.createMember(groupId, {
       lastName: "Иванов",
       firstName: "Иван",
@@ -160,11 +155,7 @@ describe("MembersService", () => {
   });
 
   it("edits roles, deactivates without deletion, restores, and deletes mistakes", async () => {
-    await service.createHeadman(groupId, {
-      lastName: "Петров",
-      firstName: "Пётр",
-      email: "",
-    });
+    await insertHeadman();
     const student = await service.createMember(groupId, {
       lastName: "Иванов",
       firstName: "Иван",
@@ -197,11 +188,7 @@ describe("MembersService", () => {
   });
 
   it("translates a concurrent attendance reference into a deletion conflict", async () => {
-    await service.createHeadman(groupId, {
-      lastName: "Петров",
-      firstName: "Пётр",
-      email: "",
-    });
+    await insertHeadman();
     const student = await service.createMember(groupId, {
       lastName: "Иванов",
       firstName: "Иван",

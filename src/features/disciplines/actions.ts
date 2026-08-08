@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache";
 import { ZodError } from "zod";
 
+import { getAuthorizationErrorMessage } from "@/features/auth/server/authorization";
 import type { Discipline } from "@/features/disciplines/domain/disciplines";
 import type {
   DisciplineFormValues,
@@ -43,6 +44,8 @@ function invalidateDisciplines(group: Pick<Group, "id" | "publicId">) {
 }
 
 function actionError(error: unknown): DisciplineActionResult {
+  const authorizationMessage = getAuthorizationErrorMessage(error);
+  if (authorizationMessage) return { status: "error", formError: authorizationMessage };
   if (error instanceof ZodError) {
     return {
       status: "error",

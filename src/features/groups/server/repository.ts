@@ -16,11 +16,22 @@ export interface PeriodLessonDateBounds {
   latestLessonDate: string;
 }
 
+export interface GroupCreator {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface RollcallRepository {
   listGroups(): Promise<Group[]>;
   findGroup(groupId: string): Promise<Group | undefined>;
   findGroupWithPeriods(groupId: string): Promise<GroupContext | undefined>;
-  insertGroup(name: string, periodType: PeriodType): Promise<Group>;
+  insertGroupWithHeadman(
+    name: string,
+    periodType: PeriodType,
+    creator: GroupCreator,
+  ): Promise<Group>;
   updateGroup(groupId: string, name: string): Promise<Group | undefined>;
   listPeriods(groupId: string): Promise<AcademicPeriod[]>;
   findPeriod(groupId: string, periodId: string): Promise<AcademicPeriod | undefined>;

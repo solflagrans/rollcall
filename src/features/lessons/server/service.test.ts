@@ -58,7 +58,7 @@ class MemoryLessonsRepository implements LessonsRepository {
       email: null,
       role: "headman",
       isActive: true,
-      userAccountId: null,
+      userId: null,
     },
     {
       ...recordBase(11),
@@ -68,7 +68,7 @@ class MemoryLessonsRepository implements LessonsRepository {
       email: null,
       role: "deputy",
       isActive: true,
-      userAccountId: null,
+      userId: null,
     },
     {
       ...recordBase(12),
@@ -78,7 +78,7 @@ class MemoryLessonsRepository implements LessonsRepository {
       email: null,
       role: "student",
       isActive: false,
-      userAccountId: null,
+      userId: null,
     },
   ];
   created: Array<{ lesson: Lesson; attendance: LessonAttendance[] }> = [];

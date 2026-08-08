@@ -16,7 +16,7 @@ export interface GroupMember {
   email: string | null;
   role: GroupMemberRole;
   isActive: boolean;
-  userAccountId: string | null;
+  userId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

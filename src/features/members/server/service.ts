@@ -3,12 +3,7 @@ import {
   isHeadman,
   type GroupMember,
 } from "@/features/members/domain/members";
-import {
-  headmanFormSchema,
-  memberFormSchema,
-  type HeadmanInput,
-  type MemberInput,
-} from "@/features/members/schemas";
+import { memberFormSchema, type MemberInput } from "@/features/members/schemas";
 import { MembersServiceError } from "@/features/members/server/errors";
 import type { MembersRepository } from "@/features/members/server/repository";
 import { entityReferenceSchema } from "@/features/groups/schemas";
@@ -27,31 +22,6 @@ export class MembersService {
     return this.repository.findMember(groupId, reference.data);
   }
 
-  async createHeadman(groupId: string, input: HeadmanInput) {
-    const values = headmanFormSchema.parse(input);
-    const members = await this.repository.listMembers(groupId);
-    if (findHeadman(members)) throw new MembersServiceError("headman_exists");
-    this.assertUniqueEmail(values.email, members);
-
-    try {
-      return await this.repository.insertMember(groupId, {
-        ...values,
-        role: "headman",
-        isActive: true,
-        userAccountId: null,
-      });
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new MembersServiceError(
-          findHeadman(await this.repository.listMembers(groupId))
-            ? "headman_exists"
-            : "duplicate_email",
-        );
-      }
-      throw error;
-    }
-  }
-
   async createMember(groupId: string, input: MemberInput) {
     const values = memberFormSchema.parse(input);
     const members = await this.repository.listMembers(groupId);
@@ -62,7 +32,7 @@ export class MembersService {
       return await this.repository.insertMember(groupId, {
         ...values,
         isActive: true,
-        userAccountId: null,
+        userId: null,
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new MembersServiceError("duplicate_email");

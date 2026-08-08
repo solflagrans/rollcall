@@ -189,7 +189,7 @@ export function PeriodJournal({
           tabIndex={0}
           aria-label="Матрица посещаемости. Прокручивается по горизонтали."
         >
-          <table className="w-max border-separate border-spacing-0 text-sm">
+          <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
                 <th
@@ -234,6 +234,11 @@ export function PeriodJournal({
                     </th>
                   );
                 })}
+                <th
+                  aria-hidden="true"
+                  className="w-full border-b bg-surface-subtle p-0"
+                  style={emptyJournalColumnsStyle}
+                />
               </tr>
             </thead>
             <tbody>
@@ -282,6 +287,11 @@ export function PeriodJournal({
                         </td>
                       );
                     })}
+                    <td
+                      aria-hidden="true"
+                      className="h-16 border-b p-0"
+                      style={emptyJournalColumnsStyle}
+                    />
                   </tr>
                 );
               })}
@@ -449,6 +459,11 @@ function formatShortDate(date: string): string {
 function lessonLabel(lesson: JournalLesson): string {
   return `${formatCalendarDate(lesson.lessonDate)}, ${lessonTypeCopy[lesson.lessonType]}, ${lesson.discipline.name}`;
 }
+
+const emptyJournalColumnsStyle: React.CSSProperties = {
+  backgroundImage:
+    "repeating-linear-gradient(to right, transparent 0, transparent calc(11rem - 1px), var(--border) calc(11rem - 1px), var(--border) 11rem)",
+};
 
 const attendanceSymbol: Record<AttendanceStatus, string> = {
   present: "П",

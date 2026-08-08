@@ -11,7 +11,6 @@ import { FormError } from "@/features/groups/components/form-error";
 import { FormField } from "@/features/groups/components/form-field";
 import { useUnsavedChanges } from "@/features/groups/components/use-unsaved-changes";
 import {
-  createHeadmanAction,
   createMemberAction,
   updateMemberAction,
 } from "@/features/members/actions";
@@ -26,7 +25,7 @@ import {
 } from "@/features/members/schemas";
 import { useActionLock } from "@/lib/use-action-lock";
 
-type MemberFormMode = "headman" | "create" | "edit";
+type MemberFormMode = "create" | "edit";
 
 export function MemberForm({
   mode,
@@ -61,13 +60,7 @@ export function MemberForm({
 
   const onSubmit = handleSubmit(async (values) => {
     const result = await submission.run(() =>
-      mode === "headman"
-        ? createHeadmanAction(groupId, {
-            lastName: values.lastName,
-            firstName: values.firstName,
-            email: values.email ?? "",
-          })
-        : mode === "create"
+      mode === "create"
           ? createMemberAction(groupId, {
               ...values,
               email: values.email ?? "",
@@ -137,8 +130,7 @@ export function MemberForm({
         />
       </FormField>
 
-      {mode === "headman" ? null : (
-        <FormField id="role" label="Роль" error={errors.role?.message}>
+      <FormField id="role" label="Роль" error={errors.role?.message}>
           <NativeSelect
             id="role"
             className="mt-1"
@@ -152,15 +144,12 @@ export function MemberForm({
               </option>
             ))}
           </NativeSelect>
-        </FormField>
-      )}
+      </FormField>
 
       <Button type="submit" size="lg" disabled={isSubmitting || submission.isLocked}>
         {isSubmitting || submission.isLocked
           ? "Сохранение…"
-          : mode === "headman"
-            ? "Добавить старосту"
-            : mode === "create"
+          : mode === "create"
               ? "Добавить участника"
               : "Сохранить изменения"}
       </Button>

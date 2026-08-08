@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { requireManagerMembership } from "@/features/auth/server/authorization";
 import type {
   CreateLessonInput,
   UpdateLessonAttendanceInput,
@@ -19,13 +20,17 @@ function getService() {
 }
 
 export const getLessonCreationContext = cache(
-  (groupReference: string, periodReference: string) =>
-    getService().getCreationContext(groupReference, periodReference),
+  async (groupReference: string, periodReference: string) => {
+    await requireManagerMembership(groupReference);
+    return getService().getCreationContext(groupReference, periodReference);
+  },
 );
 
 export const getPeriodJournal = cache(
-  (groupId: string, periodId: string) =>
-    getService().getJournal(groupId, periodId),
+  async (groupId: string, periodId: string) => {
+    await requireManagerMembership(groupId);
+    return getService().getJournal(groupId, periodId);
+  },
 );
 
 export const getCompletedMemberAttendance = cache(
@@ -38,23 +43,26 @@ export const getMemberAttendancePeriodIds = cache((memberId: string) =>
 );
 
 export const getLessonContext = cache(
-  (
+  async (
     groupReference: string,
     periodReference: string,
     lessonReference: string,
-  ) =>
-    getService().getLessonContext(
+  ) => {
+    await requireManagerMembership(groupReference);
+    return getService().getLessonContext(
       groupReference,
       periodReference,
       lessonReference,
-    ),
+    );
+  },
 );
 
-export function createLesson(
+export async function createLesson(
   groupReference: string,
   periodReference: string,
   input: CreateLessonInput,
 ) {
+  await requireManagerMembership(groupReference);
   return getService().createLesson(groupReference, periodReference, input);
 }
 
@@ -64,6 +72,7 @@ export async function updateLessonAttendance(
   lessonReference: string,
   input: UpdateLessonAttendanceInput,
 ) {
+  await requireManagerMembership(groupReference);
   return getService().updateLessonAttendance(
     groupReference,
     periodReference,
@@ -79,6 +88,7 @@ export async function updateLesson(
   lessonReference: string,
   input: UpdateLessonInput,
 ) {
+  await requireManagerMembership(groupReference);
   return getService().updateLesson(
     groupReference,
     periodReference,
@@ -93,6 +103,7 @@ export async function deleteLesson(
   periodReference: string,
   lessonReference: string,
 ) {
+  await requireManagerMembership(groupReference);
   return getService().deleteLesson(
     groupReference,
     periodReference,

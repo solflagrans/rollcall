@@ -14,7 +14,7 @@ export default async function NewGroupPage({
     <div className="mx-auto max-w-2xl space-y-8">
       <SuccessNotice notice={notice} />
       <PageHeader
-        eyebrow="Первый шаг"
+        eyebrow="Новая группа"
         title="Создание учебной группы"
         description="Укажите название группы и выберите единую систему учебных периодов."
       />

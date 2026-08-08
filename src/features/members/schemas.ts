@@ -42,15 +42,11 @@ const memberFields = {
   email: optionalEmail,
 };
 
-export const headmanFormSchema = z.object(memberFields);
 export const memberFormSchema = z.object({
   ...memberFields,
   role: z.enum(editableGroupMemberRoles, { error: "Выберите роль участника." }),
 });
 
-export type HeadmanFormValues = z.input<typeof headmanFormSchema>;
 export type MemberFormValues = z.input<typeof memberFormSchema>;
-export type HeadmanInput = z.input<typeof headmanFormSchema>;
 export type MemberInput = z.input<typeof memberFormSchema>;
-export type NormalizedHeadmanInput = z.output<typeof headmanFormSchema>;
 export type NormalizedMemberInput = z.output<typeof memberFormSchema>;

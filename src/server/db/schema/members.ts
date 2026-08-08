@@ -31,7 +31,7 @@ export const groupMembers = pgTable(
     email: varchar("email", { length: 320 }),
     role: groupMemberRoleEnum("role").notNull(),
     isActive: boolean("is_active").default(true).notNull(),
-    userAccountId: uuid("user_account_id"),
+    userId: varchar("user_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -48,6 +48,7 @@ export const groupMembers = pgTable(
     ),
     index("group_members_group_id_idx").on(table.groupId),
     index("group_members_group_active_idx").on(table.groupId, table.isActive),
+    index("group_members_user_id_idx").on(table.userId),
     index("group_members_last_name_idx").on(table.lastName),
     uniqueIndex("group_members_group_email_unique")
       .on(table.groupId, sql`lower(btrim(${table.email}))`)
@@ -55,5 +56,8 @@ export const groupMembers = pgTable(
     uniqueIndex("group_members_one_headman_per_group")
       .on(table.groupId)
       .where(sql`${table.role} = 'headman'`),
+    uniqueIndex("group_members_group_user_unique")
+      .on(table.groupId, table.userId)
+      .where(sql`${table.userId} IS NOT NULL`),
   ],
 );

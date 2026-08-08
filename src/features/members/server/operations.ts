@@ -3,8 +3,12 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
+import {
+  requireManagerMembership,
+  requireOwnStudentMembership,
+} from "@/features/auth/server/authorization";
 import { getGroup } from "@/features/groups/server/operations";
-import type { HeadmanInput, MemberInput } from "@/features/members/schemas";
+import type { MemberInput } from "@/features/members/schemas";
 import { DrizzleMembersRepository } from "@/features/members/server/drizzle-repository";
 import { MembersServiceError } from "@/features/members/server/errors";
 import { MembersService } from "@/features/members/server/service";
@@ -35,8 +39,20 @@ export const getGroupMembersContext = cache(async (groupReference: string) => {
 });
 
 export const getGroupMember = cache(
-  (groupId: string, memberReference: string) =>
-    getService().getMember(groupId, memberReference),
+  async (groupId: string, memberReference: string) => {
+    await requireManagerMembership(groupId);
+    return getService().getMember(groupId, memberReference);
+  },
+);
+
+export const getOwnGroupMember = cache(
+  async (groupReference: string, memberReference: string) => {
+    const { membership } = await requireOwnStudentMembership(
+      groupReference,
+      memberReference,
+    );
+    return getService().getMember(membership.group.id, membership.member.id);
+  },
 );
 
 export const getGroupMemberContext = cache(
@@ -54,11 +70,6 @@ async function requireGroup(groupReference: string) {
   const group = await getGroup(groupReference);
   if (!group) throw new MembersServiceError("group_not_found");
   return group;
-}
-
-export async function createHeadman(groupReference: string, input: HeadmanInput) {
-  const group = await requireGroup(groupReference);
-  return { group, member: await getService().createHeadman(group.id, input) };
 }
 
 export async function createMember(groupReference: string, input: MemberInput) {

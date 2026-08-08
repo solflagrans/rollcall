@@ -7,6 +7,7 @@ import type {
 } from "@/features/groups/domain/models";
 import { GroupServiceError } from "@/features/groups/server/errors";
 import type {
+  GroupCreator,
   PeriodLessonDateBounds,
   PeriodWriteValues,
   RollcallRepository,
@@ -41,7 +42,12 @@ class MemoryRepository implements RollcallRepository {
     return { group, periods: await this.listPeriods(group.id) };
   }
 
-  async insertGroup(name: string, periodType: PeriodType) {
+  async insertGroupWithHeadman(
+    name: string,
+    periodType: PeriodType,
+    _creator: GroupCreator,
+  ) {
+    void _creator;
     const now = new Date("2026-08-07T00:00:00Z");
     const group: Group = {
       id: uuid(this.sequence++),
@@ -108,6 +114,15 @@ class MemoryRepository implements RollcallRepository {
 describe("GroupsService integration", () => {
   let repository: MemoryRepository;
   let service: GroupsService;
+  const creator: GroupCreator = {
+    userId: "auth-user-1",
+    firstName: "Пётр",
+    lastName: "Петров",
+    email: "headman@example.com",
+  };
+
+  const createGroup = (input: Parameters<GroupsService["createGroup"]>[0]) =>
+    service.createGroup(input, creator);
 
   beforeEach(() => {
     repository = new MemoryRepository();
@@ -115,7 +130,7 @@ describe("GroupsService integration", () => {
   });
 
   it("stores the selected period type on the group and keeps it while renaming", async () => {
-    const group = await service.createGroup({ name: "  ИВТ-21  ", periodType: "quarter" });
+    const group = await createGroup({ name: "  ИВТ-21  ", periodType: "quarter" });
     expect(group).toMatchObject({ name: "ИВТ-21", periodType: "quarter" });
     expect(await service.getAcademicPeriods(group.id)).toEqual([]);
 
@@ -124,7 +139,7 @@ describe("GroupsService integration", () => {
   });
 
   it("resolves groups and periods by public IDs while keeping UUIDs internal", async () => {
-    const group = await service.createGroup({ name: "2436", periodType: "semester" });
+    const group = await createGroup({ name: "2436", periodType: "semester" });
     const created = await service.createAcademicPeriod(group.publicId, {
       number: 1,
       startsOn: "2026-09-01",
@@ -141,7 +156,7 @@ describe("GroupsService integration", () => {
   });
 
   it("creates a new item after all previous items were deleted", async () => {
-    const group = await service.createGroup({ name: "2436", periodType: "trimester" });
+    const group = await createGroup({ name: "2436", periodType: "trimester" });
     await service.createAcademicPeriod(group.publicId, {
       number: 1,
       startsOn: "2026-01-01",
@@ -160,8 +175,8 @@ describe("GroupsService integration", () => {
   });
 
   it("allows the same number in one group when date ranges do not overlap", async () => {
-    const firstGroup = await service.createGroup({ name: "A", periodType: "year" });
-    const secondGroup = await service.createGroup({ name: "B", periodType: "year" });
+    const firstGroup = await createGroup({ name: "A", periodType: "year" });
+    const secondGroup = await createGroup({ name: "B", periodType: "year" });
     for (const group of [firstGroup, secondGroup]) {
       await service.createAcademicPeriod(group.id, {
         number: 1,
@@ -181,7 +196,7 @@ describe("GroupsService integration", () => {
   });
 
   it("blocks overlapping dates", async () => {
-    const group = await service.createGroup({ name: "A", periodType: "semester" });
+    const group = await createGroup({ name: "A", periodType: "semester" });
     await service.createAcademicPeriod(group.id, {
       number: 1,
       startsOn: "2026-01-01",
@@ -199,7 +214,7 @@ describe("GroupsService integration", () => {
   });
 
   it("saves inverted chronological numbering because the warning is informational", async () => {
-    const group = await service.createGroup({ name: "A", periodType: "quarter" });
+    const group = await createGroup({ name: "A", periodType: "quarter" });
     await service.createAcademicPeriod(group.id, {
       number: 4,
       startsOn: "2026-01-01",
@@ -216,8 +231,8 @@ describe("GroupsService integration", () => {
   });
 
   it("updates a period, checks ownership, and excludes itself from validation", async () => {
-    const firstGroup = await service.createGroup({ name: "A", periodType: "trimester" });
-    const secondGroup = await service.createGroup({ name: "B", periodType: "trimester" });
+    const firstGroup = await createGroup({ name: "A", periodType: "trimester" });
+    const secondGroup = await createGroup({ name: "B", periodType: "trimester" });
     const created = await service.createAcademicPeriod(firstGroup.id, {
       number: 1,
       startsOn: "2026-01-01",
@@ -242,7 +257,7 @@ describe("GroupsService integration", () => {
   });
 
   it("does not allow period dates to exclude existing lessons", async () => {
-    const group = await service.createGroup({ name: "A", periodType: "semester" });
+    const group = await createGroup({ name: "A", periodType: "semester" });
     const created = await service.createAcademicPeriod(group.id, {
       number: 1,
       startsOn: "2026-01-01",
@@ -286,7 +301,7 @@ describe("GroupsService integration", () => {
   });
 
   it("selects the default item from dates without remembering the last selection", async () => {
-    const group = await service.createGroup({ name: "A", periodType: "semester" });
+    const group = await createGroup({ name: "A", periodType: "semester" });
     await service.createAcademicPeriod(group.id, {
       number: 1,
       startsOn: "2026-01-01",

@@ -6,6 +6,7 @@ import type { PeriodType } from "@/features/groups/domain/periods";
 import type { GroupContext } from "@/features/groups/domain/models";
 import { entityIdSchema } from "@/features/groups/schemas";
 import type {
+  GroupCreator,
   PeriodWriteValues,
   RollcallRepository,
 } from "@/features/groups/server/repository";
@@ -13,6 +14,7 @@ import { getDatabase } from "@/server/db/client";
 import { readWithRetry } from "@/server/db/read-retry";
 import {
   academicPeriods,
+  groupMembers,
   groups,
   lessons,
 } from "@/server/db/schema";
@@ -65,11 +67,27 @@ export class DrizzleRollcallRepository implements RollcallRepository {
     };
   }
 
-  async insertGroup(name: string, periodType: PeriodType) {
-    const [group] = await this.database
+  async insertGroupWithHeadman(
+    name: string,
+    periodType: PeriodType,
+    creator: GroupCreator,
+  ) {
+    const groupId = crypto.randomUUID();
+    const groupInsert = this.database
       .insert(groups)
-      .values({ name, periodType })
+      .values({ id: groupId, name, periodType })
       .returning();
+    const headmanInsert = this.database.insert(groupMembers).values({
+      groupId,
+      firstName: creator.firstName,
+      lastName: creator.lastName,
+      email: creator.email,
+      role: "headman",
+      isActive: true,
+      userId: creator.userId,
+    });
+    const [createdGroups] = await this.database.batch([groupInsert, headmanInsert]);
+    const group = createdGroups[0];
     if (!group) throw new Error("Group insert returned no row");
     return group;
   }

@@ -2,6 +2,7 @@
 
 import { ZodError } from "zod";
 
+import { getAuthorizationErrorMessage } from "@/features/auth/server/authorization";
 import { formatCalendarDate } from "@/features/groups/presentation/period-copy";
 import type {
   LessonFormValues,
@@ -20,6 +21,8 @@ import { logUnexpectedOperationError } from "@/lib/server/log-operation-error";
 import { getZodFieldErrors } from "@/lib/zod-errors";
 
 function actionError(error: unknown): FormActionResult {
+  const authorizationMessage = getAuthorizationErrorMessage(error);
+  if (authorizationMessage) return { status: "error", formError: authorizationMessage };
   if (error instanceof ZodError) {
     return {
       status: "error",

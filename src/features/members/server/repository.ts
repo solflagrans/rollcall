@@ -7,7 +7,7 @@ import type { NormalizedMemberInput } from "@/features/members/schemas";
 export interface MemberWriteValues extends Omit<NormalizedMemberInput, "role"> {
   role: GroupMemberRole;
   isActive: boolean;
-  userAccountId: string | null;
+  userId: string | null;
 }
 
 export interface MembersRepository {

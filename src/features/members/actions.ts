@@ -3,13 +3,10 @@
 import { updateTag } from "next/cache";
 import { ZodError } from "zod";
 
+import { getAuthorizationErrorMessage } from "@/features/auth/server/authorization";
 import type { Group } from "@/features/groups/domain/models";
-import type {
-  HeadmanFormValues,
-  MemberFormValues,
-} from "@/features/members/schemas";
+import type { MemberFormValues } from "@/features/members/schemas";
 import {
-  createHeadman,
   createMember,
   deleteMember,
   getMembersCacheTag,
@@ -27,6 +24,8 @@ function invalidateMembers(group: Pick<Group, "id" | "publicId">) {
 }
 
 function memberOperationError(error: unknown): FormActionResult {
+  const authorizationMessage = getAuthorizationErrorMessage(error);
+  if (authorizationMessage) return { status: "error", formError: authorizationMessage };
   if (error instanceof ZodError) {
     return {
       status: "error",
@@ -45,9 +44,6 @@ function memberOperationError(error: unknown): FormActionResult {
         formError: "Участник с таким email уже есть в группе.",
         fieldErrors: { email: "Этот email уже используется в группе." },
       };
-    }
-    if (error.code === "headman_exists") {
-      return { status: "error", formError: "В группе уже есть староста." };
     }
     if (error.code === "headman_required") {
       return { status: "error", formError: "Сначала добавьте старосту группы." };
@@ -71,22 +67,6 @@ function memberOperationError(error: unknown): FormActionResult {
     status: "error",
     formError: "Не удалось сохранить изменения. Повторите попытку.",
   };
-}
-
-export async function createHeadmanAction(
-  groupId: string,
-  values: HeadmanFormValues,
-): Promise<FormActionResult> {
-  try {
-    const result = await createHeadman(groupId, values);
-    invalidateMembers(result.group);
-    return {
-      status: "success",
-      redirectTo: `/groups/${result.group.publicId}/members?notice=headman-created`,
-    };
-  } catch (error) {
-    return memberOperationError(error);
-  }
 }
 
 export async function createMemberAction(

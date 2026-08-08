@@ -24,6 +24,7 @@ import type {
   GroupPeriodContext,
 } from "@/features/groups/domain/models";
 import type {
+  GroupCreator,
   RollcallRepository,
 } from "@/features/groups/server/repository";
 
@@ -41,9 +42,13 @@ export class GroupsService {
     return context;
   }
 
-  async createGroup(input: CreateGroupInput) {
+  async createGroup(input: CreateGroupInput, creator: GroupCreator) {
     const values = createGroupSchema.parse(input);
-    return this.repository.insertGroup(values.name, values.periodType);
+    return this.repository.insertGroupWithHeadman(
+      values.name,
+      values.periodType,
+      creator,
+    );
   }
 
   async updateGroup(groupReference: string, input: UpdateGroupInput) {

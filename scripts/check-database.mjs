@@ -18,7 +18,9 @@ const [tables] = await sql`
     to_regclass('public.disciplines')::text as disciplines_table,
     to_regclass('public.academic_period_disciplines')::text as period_disciplines_table,
     to_regclass('public.lessons')::text as lessons_table,
-    to_regclass('public.lesson_attendance')::text as lesson_attendance_table
+    to_regclass('public.lesson_attendance')::text as lesson_attendance_table,
+    to_regclass('public.auth_user_profiles')::text as auth_user_profiles_table,
+    to_regclass('neon_auth.user')::text as neon_auth_user_table
 `;
 
 if (
@@ -28,7 +30,9 @@ if (
   !tables?.disciplines_table ||
   !tables?.period_disciplines_table ||
   !tables?.lessons_table ||
-  !tables?.lesson_attendance_table
+  !tables?.lesson_attendance_table ||
+  !tables?.auth_user_profiles_table ||
+  !tables?.neon_auth_user_table
 ) {
   throw new Error("Одна или несколько таблиц Rollcall не найдены. Примените миграции.");
 }
@@ -43,7 +47,8 @@ const constraints = await sql`
     'public.disciplines'::regclass,
     'public.academic_period_disciplines'::regclass,
     'public.lessons'::regclass,
-    'public.lesson_attendance'::regclass
+    'public.lesson_attendance'::regclass,
+    'public.auth_user_profiles'::regclass
   )
 `;
 const constraintNames = new Set(constraints.map(({ conname }) => conname));
@@ -73,6 +78,8 @@ const requiredConstraints = [
   "lesson_attendance_comment_not_blank",
   "lesson_attendance_lesson_id_lessons_id_fk",
   "lesson_attendance_group_member_id_group_members_id_fk",
+  "auth_user_profiles_first_name_not_blank",
+  "auth_user_profiles_last_name_not_blank",
 ];
 const missing = requiredConstraints.filter((name) => !constraintNames.has(name));
 
@@ -104,10 +111,27 @@ const memberIndexNames = new Set(memberIndexes.map(({ indexname }) => indexname)
 for (const requiredIndex of [
   "group_members_group_email_unique",
   "group_members_one_headman_per_group",
+  "group_members_group_user_unique",
+  "group_members_user_id_idx",
 ]) {
   if (!memberIndexNames.has(requiredIndex)) {
     throw new Error(`В базе отсутствует индекс ${requiredIndex}.`);
   }
+}
+
+const [memberUserColumn] = await sql`
+  select data_type, character_maximum_length, is_nullable
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name = 'group_members'
+    and column_name = 'user_id'
+`;
+if (
+  memberUserColumn?.data_type !== "character varying" ||
+  memberUserColumn?.character_maximum_length !== 255 ||
+  memberUserColumn?.is_nullable !== "YES"
+) {
+  throw new Error("Колонка group_members.user_id не соответствует актуальной схеме.");
 }
 
 const disciplineIndexes = await sql`

@@ -3,11 +3,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/features/groups/components/page-header";
 import { redirectIfNonCanonical } from "@/features/groups/server/route-context";
-import { HeadmanOnboarding } from "@/features/members/components/headman-onboarding";
 import { MemberNotice } from "@/features/members/components/member-notice";
 import { MemberRoster } from "@/features/members/components/member-roster";
 import {
-  findHeadman,
   type MemberListStatus,
   type MemberSortKey,
   type SortDirection,
@@ -32,7 +30,6 @@ export default async function MembersPage({
   const query = await searchParams;
   const context = await requireMembersRouteContext(groupId);
   const { group, members } = context;
-  const headman = findHeadman(members);
   const status: MemberListStatus = query.status === "inactive" ? "inactive" : "active";
   const sort: MemberSortKey =
     query.sort === "email" || query.sort === "role" ? query.sort : "lastName";
@@ -57,25 +54,19 @@ export default async function MembersPage({
         title="Состав группы"
         description="Управляйте активными и неактивными участниками группы."
         actions={
-          headman ? (
-            <Button asChild>
-              <Link href={`/groups/${group.publicId}/members/new`}>Добавить участника</Link>
-            </Button>
-          ) : undefined
+          <Button asChild>
+            <Link href={`/groups/${group.publicId}/members/new`}>Добавить участника</Link>
+          </Button>
         }
       />
 
-      {!headman ? <HeadmanOnboarding groupId={group.publicId} /> : null}
-
-      {headman || members.length > 0 ? (
-        <MemberRoster
-          groupId={group.publicId}
-          members={members}
-          status={status}
-          sort={sort}
-          direction={direction}
-        />
-      ) : null}
+      <MemberRoster
+        groupId={group.publicId}
+        members={members}
+        status={status}
+        sort={sort}
+        direction={direction}
+      />
     </div>
   );
 }

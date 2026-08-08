@@ -2,6 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
+import { requireManagerRouteAccess } from "@/features/auth/server/route-context";
 import { getPeriodStatus } from "@/features/groups/domain/periods";
 import { redirectIfNonCanonical } from "@/features/groups/server/route-context";
 import { getMemberAttendancePeriodSelection } from "@/features/lessons/domain/member-attendance";
@@ -88,6 +89,7 @@ export async function requireLessonCreationRouteContext(
   groupReference: string,
   periodReference: string,
 ) {
+  await requireManagerRouteAccess(groupReference);
   const context = await getLessonCreationContext(groupReference, periodReference);
   if (!context) redirect("/groups/new?notice=group-not-found");
   if (!context.period) {
@@ -101,6 +103,7 @@ export async function requireLessonRouteContext(
   periodReference: string,
   lessonReference: string,
 ) {
+  await requireManagerRouteAccess(groupReference);
   const context = await getLessonContext(
     groupReference,
     periodReference,

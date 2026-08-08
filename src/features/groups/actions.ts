@@ -1,8 +1,10 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { cookies } from "next/headers";
 import { ZodError } from "zod";
 
+import { getAuthorizationErrorMessage } from "@/features/auth/server/authorization";
 import type { PeriodType } from "@/features/groups/domain/periods";
 import {
   formatCalendarDate,
@@ -43,6 +45,8 @@ function validationResult(error: ZodError): FormActionResult {
 }
 
 function operationError(error: unknown): FormActionResult {
+  const authorizationMessage = getAuthorizationErrorMessage(error);
+  if (authorizationMessage) return { status: "error", formError: authorizationMessage };
   if (error instanceof ZodError) {
     const formFields = new Set(["name", "periodType", "number", "startsOn", "endsOn"]);
     const isFormValidationError = error.issues.some(
@@ -105,6 +109,13 @@ export async function createGroupAction(values: GroupFormValues): Promise<FormAc
   try {
     const group = await createGroup(values);
     updateTag(GROUPS_CACHE_TAG);
+    (await cookies()).set("rollcall.current-group", group.publicId, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
     return {
       status: "success",
       redirectTo: `/groups/${group.publicId}?notice=group-created`,

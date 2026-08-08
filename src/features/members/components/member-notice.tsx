@@ -1,14 +1,13 @@
 import { ToastNotice } from "@/components/toast-notice";
 
 const messages = {
-  "headman-created": "Староста добавлен",
   "member-created": "Участник добавлен",
   "member-updated": "Данные участника обновлены",
   "member-deactivated": "Участник перенесён в неактивный состав",
   "member-reactivated": "Участник возвращён в активный состав",
   "member-deleted": "Ошибочная запись удалена",
   "member-not-found": "Участник не найден. Открыт состав группы.",
-  "headman-protected": "Управление старостой будет доступно на следующем этапе.",
+  "headman-protected": "Имя и фамилия старосты синхронизируются с профилем аккаунта.",
 } as const;
 
 export function MemberNotice({ notice }: { notice?: string }) {

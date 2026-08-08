@@ -9,3 +9,5 @@ test-results
 coverage
 .data
 *.tsbuildinfo
+.vercel
+.env*

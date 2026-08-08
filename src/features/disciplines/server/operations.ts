@@ -3,6 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
+import { requireManagerMembership } from "@/features/auth/server/authorization";
 import type {
   DisciplineFormValues,
   DisciplineSelectionInput,
@@ -50,6 +51,7 @@ export const getGroupDisciplinesContext = cache(async (groupReference: string) =
 
 export const getPeriodDisciplinesData = cache(
   async (groupId: string, periodId: string) => {
+    await requireManagerMembership(groupId);
     const [disciplines, assignedDisciplines] = await Promise.all([
       loadCachedDisciplines(groupId),
       loadCachedPeriodDisciplines(groupId, periodId),

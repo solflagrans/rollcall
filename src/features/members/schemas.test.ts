@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  headmanFormSchema,
-  memberFormSchema,
-} from "@/features/members/schemas";
+import { memberFormSchema } from "@/features/members/schemas";
 
 describe("member validation", () => {
   it("normalizes names and optional email", () => {
@@ -20,9 +17,6 @@ describe("member validation", () => {
       email: "ivan@example.com",
       role: "student",
     });
-    expect(
-      headmanFormSchema.parse({ lastName: "Петров", firstName: "Пётр", email: "" }),
-    ).toMatchObject({ email: null });
     expect(
       memberFormSchema.parse({
         lastName: "Сидоров",

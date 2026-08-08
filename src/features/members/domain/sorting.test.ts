@@ -6,7 +6,7 @@ import { sortMembers } from "@/features/members/domain/sorting";
 const base = {
   groupId: "group",
   isActive: true,
-  userAccountId: null,
+  userId: null,
   createdAt: new Date("2026-08-08T00:00:00Z"),
   updatedAt: new Date("2026-08-08T00:00:00Z"),
 } as const;
