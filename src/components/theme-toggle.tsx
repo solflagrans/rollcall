@@ -40,7 +40,6 @@ export function ThemeToggle() {
           variant="outline"
           size="icon"
           aria-label={mounted ? label : "Переключатель темы"}
-          disabled={!mounted}
           onClick={() => setTheme(nextTheme)}
         >
           <Icon aria-hidden="true" />

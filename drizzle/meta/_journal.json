@@ -8,6 +8,48 @@
       "when": 1786061284017,
       "tag": "0000_dear_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786136820568,
+      "tag": "0001_windy_darkhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786141674819,
+      "tag": "0002_curious_rumiko_fujikawa",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786144404610,
+      "tag": "0003_known_monster_badoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786149447098,
+      "tag": "0004_glamorous_marvex",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786152650393,
+      "tag": "0005_tricky_iron_fist",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786188552974,
+      "tag": "0006_futuristic_blob",
+      "breakpoints": true
     }
   ]
 }

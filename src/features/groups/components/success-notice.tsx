@@ -1,46 +1,45 @@
-"use client";
-
-import { CheckCircle2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { Button } from "@/components/ui/button";
+import { ToastNotice } from "@/components/toast-notice";
+import type { PeriodType } from "@/features/groups/domain/periods";
+import { periodTypeCopy } from "@/features/groups/presentation/period-copy";
 
 const messages = {
   "group-created": "Группа создана",
   "group-updated": "Группа обновлена",
-  "period-created": "Период создан",
-  "period-updated": "Период обновлён",
+  "period-created": "Учебный период создан",
+  "period-updated": "Учебный период обновлён",
+  "lesson-created": "Занятие сохранено",
+  "group-not-found": "Группа не найдена. Создайте новую группу.",
+  "period-not-found": "Период не найден. Открыта страница группы.",
 } as const;
+
+const warningNotices = new Set<NoticeKind>(["group-not-found", "period-not-found"]);
 
 export type NoticeKind = keyof typeof messages;
 
-export function SuccessNotice({ notice }: { notice?: string }) {
-  const [visible, setVisible] = useState(Boolean(notice && notice in messages));
-
-  useEffect(() => {
-    if (!visible) return;
-    const timeout = window.setTimeout(() => setVisible(false), 5000);
-    return () => window.clearTimeout(timeout);
-  }, [visible]);
-
-  if (!visible || !notice || !(notice in messages)) return null;
+export function SuccessNotice({
+  notice,
+  periodType,
+}: {
+  notice?: string;
+  periodType?: PeriodType;
+}) {
+  if (!notice || !(notice in messages)) return null;
+  const noticeKind = notice as NoticeKind;
+  const warning = warningNotices.has(noticeKind);
+  let message: string = messages[noticeKind];
+  if (periodType && noticeKind === "period-created") {
+    message = periodTypeCopy[periodType].createdNotice;
+  } else if (periodType && noticeKind === "period-updated") {
+    message = periodTypeCopy[periodType].updatedNotice;
+  } else if (periodType && noticeKind === "period-not-found") {
+    message = periodTypeCopy[periodType].notFoundNotice;
+  }
 
   return (
-    <div
-      role="status"
-      className="fixed top-4 right-4 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-md border bg-card p-3 shadow-sm"
-    >
-      <CheckCircle2 aria-hidden="true" className="size-5 text-status-present" />
-      <span className="text-sm font-medium">{messages[notice as NoticeKind]}</span>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Закрыть уведомление"
-        onClick={() => setVisible(false)}
-      >
-        <X aria-hidden="true" />
-      </Button>
-    </div>
+    <ToastNotice
+      key={noticeKind}
+      message={message}
+      tone={warning ? "warning" : "success"}
+    />
   );
 }

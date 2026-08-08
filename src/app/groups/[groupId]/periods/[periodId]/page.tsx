@@ -1,23 +1,25 @@
-import { CalendarDays, Pencil, Plus } from "lucide-react";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-
-import { Button } from "@/components/ui/button";
+import { DisciplineNotice } from "@/features/disciplines/components/discipline-notice";
+import { PeriodDisciplinesSection } from "@/features/disciplines/components/period-disciplines-section";
+import { getPeriodDisciplinesData } from "@/features/disciplines/server/operations";
+import { NewPeriodAction } from "@/features/groups/components/new-period-action";
 import { PageHeader } from "@/features/groups/components/page-header";
+import { PeriodActionsMenu } from "@/features/groups/components/period-actions-menu";
 import { PeriodSwitcher } from "@/features/groups/components/period-switcher";
 import { StatusBadge } from "@/features/groups/components/status-badge";
 import { SuccessNotice } from "@/features/groups/components/success-notice";
+import { PeriodLessonsSection } from "@/features/lessons/components/period-lessons-section";
+import {
+  getPeriodStatus,
+} from "@/features/groups/domain/periods";
 import {
   formatCalendarDate,
   formatPeriodName,
-  getPeriodStatus,
-  getTodayDate,
-} from "@/features/groups/domain/periods";
+} from "@/features/groups/presentation/period-copy";
 import {
-  getAcademicPeriod,
-  getAcademicPeriods,
-  getGroup,
-} from "@/features/groups/server/operations";
+  redirectIfNonCanonical,
+  requireGroupPeriodRouteContext,
+} from "@/features/groups/server/route-context";
+import { getUserToday } from "@/features/preferences/server/user-time-zone";
 
 export const dynamic = "force-dynamic";
 
@@ -26,69 +28,75 @@ export default async function AcademicPeriodPage({
   searchParams,
 }: {
   params: Promise<{ groupId: string; periodId: string }>;
-  searchParams: Promise<{ notice?: string }>;
+  searchParams: Promise<{ notice?: string; "add-disciplines"?: string }>;
 }) {
   const { groupId, periodId } = await params;
-  const [{ notice }, group, period, periods] = await Promise.all([
-    searchParams,
-    getGroup(groupId),
-    getAcademicPeriod(groupId, periodId),
-    getAcademicPeriods(groupId),
-  ]);
-  if (!group || !period || !group.periodType) notFound();
+  const { notice, "add-disciplines": addDisciplines } = await searchParams;
+  const context = await requireGroupPeriodRouteContext(groupId, periodId);
+  const { group, period, periods } = context;
 
+  const canonicalSearch = new URLSearchParams();
+  if (notice) canonicalSearch.set("notice", notice);
+  if (addDisciplines === "1") canonicalSearch.set("add-disciplines", "1");
+  const query = canonicalSearch.size > 0 ? `?${canonicalSearch.toString()}` : "";
+  redirectIfNonCanonical(
+    [
+      { received: groupId, canonical: group.publicId },
+      { received: periodId, canonical: period.publicId },
+    ],
+    `/groups/${group.publicId}/periods/${period.publicId}${query}`,
+  );
   const periodName = formatPeriodName(group.periodType, period.number);
-  const status = getPeriodStatus(period.startsOn, period.endsOn, getTodayDate());
+  const status = getPeriodStatus(period.startsOn, period.endsOn, await getUserToday());
+  const disciplineData = await getPeriodDisciplinesData(group.id, period.id);
 
   return (
     <div className="space-y-8">
-      <SuccessNotice notice={notice} />
+      <SuccessNotice notice={notice} periodType={group.periodType} />
+      <DisciplineNotice notice={notice} />
       <PageHeader
         eyebrow={`Группа ${group.name}`}
         title={periodName}
         description={`${formatCalendarDate(period.startsOn)} — ${formatCalendarDate(period.endsOn)}`}
-        actions={
-          <>
-            <Button asChild variant="outline">
-              <Link href={`/groups/${groupId}/edit?periodId=${periodId}`}>
-                <Pencil aria-hidden="true" />
-                Изменить группу
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/groups/${groupId}/periods/${periodId}/edit`}>
-                <Pencil aria-hidden="true" />
-                Изменить период
-              </Link>
-            </Button>
-          </>
-        }
       />
 
       <div className="flex items-center justify-between gap-4">
         <StatusBadge status={status} />
-        <Button asChild variant="ghost" className="hidden sm:inline-flex">
-          <Link href={`/groups/${groupId}/periods/new`}>
-            <Plus aria-hidden="true" />
-            Добавить период
-          </Link>
-        </Button>
+        <div>
+          <NewPeriodAction groupId={group.publicId} periodType={group.periodType} />
+        </div>
       </div>
 
-      <PeriodSwitcher
-        groupId={groupId}
-        periodType={group.periodType}
-        periods={periods}
-        selectedPeriodId={periodId}
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <PeriodSwitcher
+            groupId={group.publicId}
+            periodType={group.periodType}
+            periods={periods}
+            selectedPeriodId={period.publicId}
+          />
+        </div>
+        <PeriodActionsMenu
+          groupId={group.publicId}
+          periodId={period.publicId}
+          periodType={group.periodType}
+          periodNumber={period.number}
+        />
+      </div>
+
+      <PeriodDisciplinesSection
+        groupId={group.publicId}
+        periodId={period.publicId}
+        disciplines={disciplineData.disciplines}
+        assignedDisciplines={disciplineData.assignedDisciplines}
+        openOnLoad={addDisciplines === "1"}
       />
 
-      <section className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-10">
-        <CalendarDays aria-hidden="true" className="size-8 text-muted-foreground" />
-        <h2 className="mt-4 font-heading text-xl font-semibold">Данные периода появятся позже</h2>
-        <p className="mt-2 max-w-2xl text-muted-foreground">
-          На следующих этапах здесь появятся дисциплины, занятия и журнал посещаемости.
-        </p>
-      </section>
+      <PeriodLessonsSection
+        groupId={group.publicId}
+        periodId={period.publicId}
+        hasDisciplines={disciplineData.assignedDisciplines.length > 0}
+      />
     </div>
   );
 }

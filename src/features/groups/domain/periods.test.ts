@@ -2,19 +2,70 @@ import { describe, expect, it } from "vitest";
 
 import {
   findOverlappingPeriods,
-  formatPeriodName,
+  findPeriodsWithInvertedNumberOrder,
   getPeriodStatus,
+  getSuggestedPeriodNumber,
   selectDefaultPeriod,
 } from "@/features/groups/domain/periods";
+import { formatPeriodName } from "@/features/groups/presentation/period-copy";
 
 describe("formatPeriodName", () => {
   it.each([
     ["semester", 1, "1 Семестр"],
     ["trimester", 2, "2 Триместр"],
     ["quarter", 3, "3 Четверть"],
-    ["year", 1, "1 Год"],
+    ["year", 1, "1 Учебный год"],
   ] as const)("formats %s periods", (type, number, expected) => {
     expect(formatPeriodName(type, number)).toBe(expected);
+  });
+});
+
+describe("getSuggestedPeriodNumber", () => {
+  it("uses one for an empty list", () => {
+    expect(getSuggestedPeriodNumber([])).toBe(1);
+  });
+
+  it("increments the number of the chronologically latest item", () => {
+    expect(
+      getSuggestedPeriodNumber([
+        { id: "later", number: 3, startsOn: "2026-09-01", endsOn: "2026-12-31" },
+        { id: "earlier", number: 8, startsOn: "2026-01-01", endsOn: "2026-03-31" },
+      ]),
+    ).toBe(4);
+  });
+});
+
+describe("findPeriodsWithInvertedNumberOrder", () => {
+  const periods = [
+    { id: "earlier", number: 4, startsOn: "2026-01-01", endsOn: "2026-03-31" },
+    { id: "later", number: 6, startsOn: "2026-09-01", endsOn: "2026-12-31" },
+  ];
+
+  it("finds a later item with a smaller number", () => {
+    expect(
+      findPeriodsWithInvertedNumberOrder(
+        { id: "new", number: 2, startsOn: "2026-04-01", endsOn: "2026-06-30" },
+        periods,
+      ),
+    ).toEqual([periods[0]]);
+  });
+
+  it("warns when chronological neighbors use the same number", () => {
+    expect(
+      findPeriodsWithInvertedNumberOrder(
+        { id: "new", number: 4, startsOn: "2026-04-01", endsOn: "2026-06-30" },
+        periods,
+      ),
+    ).toEqual([periods[0]]);
+  });
+
+  it("accepts chronological numbering and excludes the edited item", () => {
+    expect(
+      findPeriodsWithInvertedNumberOrder(
+        { id: "later", number: 6, startsOn: "2026-09-01", endsOn: "2026-12-31" },
+        periods,
+      ),
+    ).toEqual([]);
   });
 });
 

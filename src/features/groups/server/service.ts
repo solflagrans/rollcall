@@ -1,174 +1,182 @@
 import {
   findOverlappingPeriods,
-  getTodayDate,
   selectDefaultPeriod,
   type PeriodSummary,
 } from "@/features/groups/domain/periods";
 import {
   createAcademicPeriodSchema,
-  createFirstAcademicPeriodSchema,
   createGroupSchema,
-  entityIdSchema,
+  entityReferenceSchema,
   updateAcademicPeriodSchema,
   updateGroupSchema,
   type CreateAcademicPeriodInput,
-  type CreateFirstAcademicPeriodInput,
   type CreateGroupInput,
   type UpdateAcademicPeriodInput,
   type UpdateGroupInput,
 } from "@/features/groups/schemas";
-import { GroupServiceError, isUniqueViolation } from "@/features/groups/server/errors";
-import type { RollcallRepository } from "@/features/groups/server/repository";
-import type { AcademicPeriodRecord } from "@/server/db/schema";
+import {
+  GroupServiceError,
+  isExclusionViolation,
+} from "@/features/groups/server/errors";
+import type {
+  AcademicPeriod,
+  Group,
+  GroupPeriodContext,
+} from "@/features/groups/domain/models";
+import type {
+  RollcallRepository,
+} from "@/features/groups/server/repository";
 
 export type PeriodMutationResult =
-  | { kind: "saved"; period: AcademicPeriodRecord }
-  | { kind: "overlap"; periods: AcademicPeriodRecord[] };
+  | { kind: "saved"; group: Group; period: AcademicPeriod }
+  | { kind: "overlap"; group: Group; periods: AcademicPeriod[] };
 
 export class GroupsService {
   constructor(private readonly repository: RollcallRepository) {}
 
+  private async requireGroupContext(groupReference: string) {
+    const reference = entityReferenceSchema.parse(groupReference);
+    const context = await this.repository.findGroupWithPeriods(reference);
+    if (!context) throw new GroupServiceError("group_not_found");
+    return context;
+  }
+
   async createGroup(input: CreateGroupInput) {
     const values = createGroupSchema.parse(input);
-    return this.repository.insertGroup(values.name);
+    return this.repository.insertGroup(values.name, values.periodType);
   }
 
-  async updateGroup(groupId: string, input: UpdateGroupInput) {
-    entityIdSchema.parse(groupId);
+  async updateGroup(groupReference: string, input: UpdateGroupInput) {
+    const reference = entityReferenceSchema.parse(groupReference);
     const values = updateGroupSchema.parse(input);
-    const group = await this.repository.updateGroup(groupId, values.name);
-    if (!group) throw new GroupServiceError("group_not_found");
-    return group;
+    const updated = await this.repository.updateGroup(reference, values.name);
+    if (!updated) throw new GroupServiceError("group_not_found");
+    return updated;
   }
 
-  async getGroup(groupId: string) {
-    entityIdSchema.parse(groupId);
-    return this.repository.findGroup(groupId);
+  async getGroup(groupReference: string) {
+    const reference = entityReferenceSchema.safeParse(groupReference);
+    if (!reference.success) return undefined;
+    return this.repository.findGroup(reference.data);
   }
 
   async getGroups() {
     return this.repository.listGroups();
   }
 
-  async createFirstAcademicPeriod(
-    groupId: string,
-    input: CreateFirstAcademicPeriodInput,
-  ): Promise<PeriodMutationResult> {
-    entityIdSchema.parse(groupId);
-    const values = createFirstAcademicPeriodSchema.parse(input);
-    const group = await this.repository.findGroup(groupId);
-    if (!group) throw new GroupServiceError("group_not_found");
+  async getGroupContext(groupReference: string) {
+    const reference = entityReferenceSchema.safeParse(groupReference);
+    if (!reference.success) return undefined;
+    return this.repository.findGroupWithPeriods(reference.data);
+  }
 
-    const periods = await this.repository.listPeriods(groupId);
-    if (group.periodType !== null || periods.length > 0) {
-      throw new GroupServiceError("period_type_already_set");
-    }
-
-    if (!values.forceOverlap) {
-      const overlaps = findOverlappingPeriods(values, periods);
-      if (overlaps.length > 0) return { kind: "overlap", periods: overlaps };
-    }
-
-    try {
-      const period = await this.repository.insertFirstPeriodAtomic(
-        groupId,
-        values.periodType,
-        values,
-      );
-      if (!period) throw new GroupServiceError("first_period_conflict");
-      return { kind: "saved", period };
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new GroupServiceError("duplicate_period_number");
-      throw error;
-    }
+  async getGroupPeriodContext(
+    groupReference: string,
+    periodReference: string,
+  ): Promise<GroupPeriodContext | undefined> {
+    const context = await this.getGroupContext(groupReference);
+    const period = entityReferenceSchema.safeParse(periodReference);
+    if (!context || !period.success) return context;
+    return {
+      ...context,
+      period: context.periods.find(
+        (candidate) =>
+          candidate.id === period.data || candidate.publicId === period.data,
+      ),
+    };
   }
 
   async createAcademicPeriod(
-    groupId: string,
+    groupReference: string,
     input: CreateAcademicPeriodInput,
   ): Promise<PeriodMutationResult> {
-    entityIdSchema.parse(groupId);
-    const values = createAcademicPeriodSchema.parse(input);
-    const group = await this.repository.findGroup(groupId);
-    if (!group) throw new GroupServiceError("group_not_found");
-    if (!group.periodType) throw new GroupServiceError("period_type_missing");
+    const periodValues = createAcademicPeriodSchema.parse(input);
+    const { group, periods } = await this.requireGroupContext(groupReference);
 
-    const periods = await this.repository.listPeriods(groupId);
-    if (periods.some((period) => period.number === values.number)) {
-      throw new GroupServiceError("duplicate_period_number");
-    }
-
-    if (!values.forceOverlap) {
-      const overlaps = findOverlappingPeriods(values, periods);
-      if (overlaps.length > 0) return { kind: "overlap", periods: overlaps };
-    }
+    const overlaps = findOverlappingPeriods(periodValues, periods);
+    if (overlaps.length > 0) return { kind: "overlap", group, periods: overlaps };
 
     try {
       return {
         kind: "saved",
-        period: await this.repository.insertPeriod(groupId, values),
+        group,
+        period: await this.repository.insertPeriod(group.id, periodValues),
       };
     } catch (error) {
-      if (isUniqueViolation(error)) throw new GroupServiceError("duplicate_period_number");
+      if (isExclusionViolation(error)) {
+        throw new GroupServiceError("overlapping_period_dates");
+      }
       throw error;
     }
   }
 
   async updateAcademicPeriod(
-    groupId: string,
-    periodId: string,
+    groupReference: string,
+    periodReference: string,
     input: UpdateAcademicPeriodInput,
   ): Promise<PeriodMutationResult> {
-    entityIdSchema.parse(groupId);
-    entityIdSchema.parse(periodId);
-    const values = updateAcademicPeriodSchema.parse(input);
-    const group = await this.repository.findGroup(groupId);
-    if (!group) throw new GroupServiceError("group_not_found");
-
-    const period = await this.repository.findPeriod(groupId, periodId);
+    entityReferenceSchema.parse(periodReference);
+    const periodValues = updateAcademicPeriodSchema.parse(input);
+    const { group, periods } = await this.requireGroupContext(groupReference);
+    const period = periods.find(
+      (candidate) =>
+        candidate.id === periodReference || candidate.publicId === periodReference,
+    );
     if (!period) throw new GroupServiceError("period_not_owned");
 
-    const periods = await this.repository.listPeriods(groupId);
-    if (periods.some((candidate) => candidate.id !== periodId && candidate.number === values.number)) {
-      throw new GroupServiceError("duplicate_period_number");
-    }
+    const overlaps = findOverlappingPeriods({ ...periodValues, id: period.id }, periods);
+    if (overlaps.length > 0) return { kind: "overlap", group, periods: overlaps };
 
-    if (!values.forceOverlap) {
-      const overlaps = findOverlappingPeriods({ ...values, id: periodId }, periods);
-      if (overlaps.length > 0) return { kind: "overlap", periods: overlaps };
+    const lessonDateBounds = await this.repository.getPeriodLessonDateBounds(period.id);
+    if (
+      lessonDateBounds &&
+      periodValues.startsOn > lessonDateBounds.earliestLessonDate
+    ) {
+      throw new GroupServiceError(
+        "period_starts_after_earliest_lesson",
+        lessonDateBounds.earliestLessonDate,
+      );
+    }
+    if (
+      lessonDateBounds &&
+      periodValues.endsOn < lessonDateBounds.latestLessonDate
+    ) {
+      throw new GroupServiceError(
+        "period_ends_before_latest_lesson",
+        lessonDateBounds.latestLessonDate,
+      );
     }
 
     try {
-      const updated = await this.repository.updatePeriod(groupId, periodId, values);
+      const updated = await this.repository.updatePeriod(group.id, period.id, periodValues);
       if (!updated) throw new GroupServiceError("period_not_owned");
-      return { kind: "saved", period: updated };
+      return { kind: "saved", group, period: updated };
     } catch (error) {
-      if (isUniqueViolation(error)) throw new GroupServiceError("duplicate_period_number");
+      if (isExclusionViolation(error)) {
+        throw new GroupServiceError("overlapping_period_dates");
+      }
       throw error;
     }
   }
 
-  async getAcademicPeriod(groupId: string, periodId: string) {
-    entityIdSchema.parse(groupId);
-    entityIdSchema.parse(periodId);
-    return this.repository.findPeriod(groupId, periodId);
+  async getAcademicPeriod(groupReference: string, periodReference: string) {
+    return (await this.getGroupPeriodContext(groupReference, periodReference))?.period;
   }
 
-  async getAcademicPeriods(groupId: string) {
-    entityIdSchema.parse(groupId);
-    return this.repository.listPeriods(groupId);
+  async getAcademicPeriods(groupReference: string) {
+    return (await this.getGroupContext(groupReference))?.periods ?? [];
   }
 
-  async getDefaultAcademicPeriod(groupId: string, today = getTodayDate()) {
-    const periods = await this.getAcademicPeriods(groupId);
+  async getDefaultAcademicPeriod(groupReference: string, today: string) {
+    const periods = await this.getAcademicPeriods(groupReference);
     return selectDefaultPeriod(periods, today);
   }
 
   async checkPeriodOverlap(
-    groupId: string,
+    groupReference: string,
     period: PeriodSummary,
-  ): Promise<AcademicPeriodRecord[]> {
-    const periods = await this.getAcademicPeriods(groupId);
+  ): Promise<AcademicPeriod[]> {
+    const periods = await this.getAcademicPeriods(groupReference);
     return findOverlappingPeriods(period, periods);
   }
 }

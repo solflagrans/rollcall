@@ -1,15 +1,17 @@
-import { CalendarPlus, Pencil } from "lucide-react";
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { CalendarPlus } from "lucide-react";
+import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { NewPeriodAction } from "@/features/groups/components/new-period-action";
 import { PageHeader } from "@/features/groups/components/page-header";
 import { SuccessNotice } from "@/features/groups/components/success-notice";
+import { selectDefaultPeriod } from "@/features/groups/domain/periods";
+import { periodTypeCopy } from "@/features/groups/presentation/period-copy";
 import {
-  getAcademicPeriods,
-  getGroup,
-} from "@/features/groups/server/operations";
-import { selectDefaultPeriod, getTodayDate } from "@/features/groups/domain/periods";
+  noticeQuery,
+  redirectIfNonCanonical,
+  requireGroupRouteContext,
+} from "@/features/groups/server/route-context";
+import { getUserToday } from "@/features/preferences/server/user-time-zone";
 
 export const dynamic = "force-dynamic";
 
@@ -21,35 +23,30 @@ export default async function GroupPage({
   searchParams: Promise<{ notice?: string }>;
 }) {
   const { groupId } = await params;
-  const [{ notice }, group, periods] = await Promise.all([
-    searchParams,
-    getGroup(groupId),
-    getAcademicPeriods(groupId),
-  ]);
-  if (!group) notFound();
+  const { notice } = await searchParams;
+  const context = await requireGroupRouteContext(groupId);
+  const { group, periods } = context;
+  const copy = periodTypeCopy[group.periodType];
+
+  const query = noticeQuery(notice);
+  redirectIfNonCanonical(
+    [{ received: groupId, canonical: group.publicId }],
+    `/groups/${group.publicId}${query}`,
+  );
 
   if (periods.length > 0) {
-    const defaultPeriod = selectDefaultPeriod(periods, getTodayDate());
+    const defaultPeriod = selectDefaultPeriod(periods, await getUserToday());
     if (defaultPeriod) {
-      const noticeQuery = notice ? `?notice=${encodeURIComponent(notice)}` : "";
-      redirect(`/groups/${groupId}/periods/${defaultPeriod.id}${noticeQuery}`);
+      redirect(`/groups/${group.publicId}/periods/${defaultPeriod.publicId}${query}`);
     }
   }
 
   return (
     <div className="space-y-8">
-      <SuccessNotice notice={notice} />
+      <SuccessNotice notice={notice} periodType={group.periodType} />
       <PageHeader
         eyebrow="Учебная группа"
         title={`Группа ${group.name}`}
-        actions={
-          <Button asChild variant="outline">
-            <Link href={`/groups/${groupId}/edit`}>
-              <Pencil aria-hidden="true" />
-              Изменить
-            </Link>
-          </Button>
-        }
       />
 
       <section className="rounded-md border bg-card p-6 sm:p-10">
@@ -58,15 +55,18 @@ export default async function GroupPage({
             <CalendarPlus aria-hidden="true" className="size-6" />
           </div>
           <h2 className="mt-5 font-heading text-xl font-semibold">
-            Учебные периоды ещё не созданы
+            {copy.plural} ещё не добавлены
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Создайте период, чтобы в дальнейшем добавлять дисциплины, занятия и вести журнал
-            посещаемости.
+            После добавления здесь появятся дисциплины, занятия и журнал посещаемости.
           </p>
-          <Button asChild size="lg" className="mt-6">
-            <Link href={`/groups/${groupId}/periods/new`}>Создать период</Link>
-          </Button>
+          <div className="mt-6">
+            <NewPeriodAction
+              groupId={group.publicId}
+              periodType={group.periodType}
+              prominent
+            />
+          </div>
         </div>
       </section>
     </div>

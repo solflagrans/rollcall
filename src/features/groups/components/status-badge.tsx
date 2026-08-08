@@ -1,8 +1,6 @@
 import { cn } from "@/lib/utils";
-import {
-  periodStatusLabels,
-  type PeriodStatus,
-} from "@/features/groups/domain/periods";
+import { type PeriodStatus } from "@/features/groups/domain/periods";
+import { periodStatusLabels } from "@/features/groups/presentation/period-copy";
 
 const statusClasses: Record<PeriodStatus, string> = {
   current: "border-primary/30 bg-accent text-accent-foreground",

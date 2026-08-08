@@ -1,38 +1,39 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { ZodError } from "zod";
 
-import { formatPeriodName } from "@/features/groups/domain/periods";
+import type { PeriodType } from "@/features/groups/domain/periods";
+import {
+  formatCalendarDate,
+  formatPeriodName,
+} from "@/features/groups/presentation/period-copy";
 import type {
   AcademicPeriodFormValues,
-  FirstAcademicPeriodFormValues,
   GroupFormValues,
+  UpdateGroupInput,
 } from "@/features/groups/schemas";
 import { GroupServiceError } from "@/features/groups/server/errors";
 import {
   createAcademicPeriod,
-  createFirstAcademicPeriod,
   createGroup,
+  GROUPS_CACHE_TAG,
   getAcademicPeriod,
-  getGroup,
+  getGroupCacheTag,
   updateAcademicPeriod,
   updateGroup,
 } from "@/features/groups/server/operations";
-
-export type FormActionResult =
-  | { status: "success"; redirectTo: string }
-  | { status: "error"; formError: string; fieldErrors?: Record<string, string> }
-  | { status: "overlap"; message: string };
+import type { PeriodMutationResult } from "@/features/groups/server/service";
+import type { Group } from "@/features/groups/domain/models";
+import type { FormActionResult } from "@/lib/form-action";
+import { logUnexpectedOperationError } from "@/lib/server/log-operation-error";
+import { getZodFieldErrors } from "@/lib/zod-errors";
 
 function validationResult(error: ZodError): FormActionResult {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = issue.path[0];
-    if (typeof field === "string" && !fieldErrors[field]) {
-      fieldErrors[field] = issue.message;
-    }
-  }
+  const fieldErrors = getZodFieldErrors(
+    error,
+    new Set(["name", "periodType", "number", "startsOn", "endsOn"]),
+  );
 
   return {
     status: "error",
@@ -51,23 +52,42 @@ function operationError(error: unknown): FormActionResult {
   }
 
   if (error instanceof GroupServiceError) {
-    if (error.code === "duplicate_period_number") {
+    if (error.code === "overlapping_period_dates") {
       return {
         status: "error",
-        formError: "Не удалось сохранить период.",
-        fieldErrors: { number: "Период с таким номером уже существует." },
+        formError: "Выбранные даты пересекаются с уже сохранённым диапазоном.",
+      };
+    }
+    if (
+      error.code === "period_starts_after_earliest_lesson" &&
+      error.conflictingLessonDate
+    ) {
+      return {
+        status: "error",
+        formError: `Дата начала не может быть позже занятия ${formatCalendarDate(error.conflictingLessonDate)}`,
+        fieldErrors: {
+          startsOn: `Самое раннее занятие назначено на ${formatCalendarDate(error.conflictingLessonDate)}`,
+        },
+      };
+    }
+    if (
+      error.code === "period_ends_before_latest_lesson" &&
+      error.conflictingLessonDate
+    ) {
+      return {
+        status: "error",
+        formError: `Дата окончания не может быть раньше занятия ${formatCalendarDate(error.conflictingLessonDate)}`,
+        fieldErrors: {
+          endsOn: `Самое позднее занятие назначено на ${formatCalendarDate(error.conflictingLessonDate)}`,
+        },
       };
     }
     if (error.code === "group_not_found" || error.code === "period_not_owned") {
       return { status: "error", formError: "Запрашиваемые данные не найдены." };
     }
-    if (error.code === "period_type_already_set" || error.code === "first_period_conflict") {
-      return {
-        status: "error",
-        formError: "Состояние группы изменилось. Обновите страницу и повторите попытку.",
-      };
-    }
   }
+
+  logUnexpectedOperationError("groups", error);
 
   return {
     status: "error",
@@ -75,13 +95,19 @@ function operationError(error: unknown): FormActionResult {
   };
 }
 
+function invalidateGroup(group: Pick<Group, "id" | "publicId">, includeList = false) {
+  updateTag(getGroupCacheTag(group.id));
+  updateTag(getGroupCacheTag(group.publicId));
+  if (includeList) updateTag(GROUPS_CACHE_TAG);
+}
+
 export async function createGroupAction(values: GroupFormValues): Promise<FormActionResult> {
   try {
     const group = await createGroup(values);
-    revalidatePath("/");
+    updateTag(GROUPS_CACHE_TAG);
     return {
       status: "success",
-      redirectTo: `/groups/${group.id}?notice=group-created`,
+      redirectTo: `/groups/${group.publicId}?notice=group-created`,
     };
   } catch (error) {
     return operationError(error);
@@ -90,96 +116,73 @@ export async function createGroupAction(values: GroupFormValues): Promise<FormAc
 
 export async function updateGroupAction(
   groupId: string,
-  values: GroupFormValues,
+  values: UpdateGroupInput,
   returnPeriodId?: string,
 ): Promise<FormActionResult> {
   try {
-    await updateGroup(groupId, values);
-    let redirectTo = `/groups/${groupId}?notice=group-updated`;
+    const group = await updateGroup(groupId, values);
+    invalidateGroup(group, true);
+    let redirectTo = `/groups/${group.publicId}?notice=group-updated`;
 
     if (returnPeriodId) {
-      const period = await getAcademicPeriod(groupId, returnPeriodId);
+      const period = await getAcademicPeriod(group.publicId, returnPeriodId);
       if (period) {
-        redirectTo = `/groups/${groupId}/periods/${period.id}?notice=group-updated`;
+        redirectTo = `/groups/${group.publicId}/periods/${period.publicId}?notice=group-updated`;
       }
     }
 
-    revalidatePath(`/groups/${groupId}`, "layout");
     return { status: "success", redirectTo };
   } catch (error) {
     return operationError(error);
   }
 }
 
-function overlapResult(
-  periodType: NonNullable<Awaited<ReturnType<typeof getGroup>>>["periodType"],
+function formatRelatedPeriods(
+  periodType: PeriodType,
   periods: Array<{ number: number }>,
-): FormActionResult {
-  if (!periodType || periods.length === 0) {
-    return { status: "error", formError: "Не удалось проверить пересечение дат." };
-  }
-  const names = periods.map((period) => `„${formatPeriodName(periodType, period.number)}“`);
-  return {
-    status: "overlap",
-    message: `Даты пересекаются с периодом ${names.join(", ")}.`,
-  };
+): string {
+  return periods
+    .map((period) => `«${formatPeriodName(periodType, period.number)}»`)
+    .join(", ");
 }
 
 export async function createPeriodAction(
   groupId: string,
-  values: FirstAcademicPeriodFormValues | AcademicPeriodFormValues,
-  firstPeriod: boolean,
-  forceOverlap = false,
+  values: AcademicPeriodFormValues,
 ): Promise<FormActionResult> {
-  try {
-    const group = await getGroup(groupId);
-    if (!group) return { status: "error", formError: "Группа не найдена." };
-
-    const result = firstPeriod
-      ? await createFirstAcademicPeriod(groupId, {
-          ...(values as FirstAcademicPeriodFormValues),
-          forceOverlap,
-        })
-      : await createAcademicPeriod(groupId, {
-          ...(values as AcademicPeriodFormValues),
-          forceOverlap,
-        });
-
-    if (result.kind === "overlap") {
-      const periodType = group.periodType ?? (values as FirstAcademicPeriodFormValues).periodType;
-      return overlapResult(periodType, result.periods);
-    }
-
-    revalidatePath(`/groups/${groupId}`, "layout");
-    return {
-      status: "success",
-      redirectTo: `/groups/${groupId}/periods/${result.period.id}?notice=period-created`,
-    };
-  } catch (error) {
-    return operationError(error);
-  }
+  return mutatePeriod(
+    () => createAcademicPeriod(groupId, values),
+    "period-created",
+  );
 }
 
 export async function updatePeriodAction(
   groupId: string,
   periodId: string,
   values: AcademicPeriodFormValues,
-  forceOverlap = false,
+): Promise<FormActionResult> {
+  return mutatePeriod(
+    () => updateAcademicPeriod(groupId, periodId, values),
+    "period-updated",
+  );
+}
+
+async function mutatePeriod(
+  mutation: () => Promise<PeriodMutationResult>,
+  notice: "period-created" | "period-updated",
 ): Promise<FormActionResult> {
   try {
-    const group = await getGroup(groupId);
-    if (!group) return { status: "error", formError: "Группа не найдена." };
-
-    const result = await updateAcademicPeriod(groupId, periodId, {
-      ...values,
-      forceOverlap,
-    });
-    if (result.kind === "overlap") return overlapResult(group.periodType, result.periods);
-
-    revalidatePath(`/groups/${groupId}`, "layout");
+    const result = await mutation();
+    if (result.kind === "overlap") {
+      return {
+        status: "error",
+        formError: `Даты пересекаются с ${formatRelatedPeriods(result.group.periodType, result.periods)}. Измените даты.`,
+      };
+    }
+    invalidateGroup(result.group);
     return {
       status: "success",
-      redirectTo: `/groups/${groupId}/periods/${periodId}?notice=period-updated`,
+      redirectTo: `/groups/${result.group.publicId}/periods/${result.period.publicId}?notice=${notice}`,
     };
   } catch (error) {
     return operationError(error);

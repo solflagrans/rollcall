@@ -1,0 +1,1 @@
+ALTER TABLE "academic_periods" DROP CONSTRAINT "academic_periods_group_number_unique";

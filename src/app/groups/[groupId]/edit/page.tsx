@@ -1,8 +1,12 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
+import { FormCard } from "@/features/groups/components/form-card";
 import { GroupForm } from "@/features/groups/components/group-form";
 import { PageHeader } from "@/features/groups/components/page-header";
-import { getAcademicPeriod, getGroup } from "@/features/groups/server/operations";
+import {
+  redirectIfNonCanonical,
+  requireGroupRouteContext,
+} from "@/features/groups/server/route-context";
 
 export const dynamic = "force-dynamic";
 
@@ -15,22 +19,40 @@ export default async function EditGroupPage({
 }) {
   const { groupId } = await params;
   const { periodId } = await searchParams;
-  const group = await getGroup(groupId);
-  if (!group) notFound();
+  const context = await requireGroupRouteContext(groupId);
+  const { group, periods } = context;
 
-  const returnPeriod = periodId ? await getAcademicPeriod(groupId, periodId) : undefined;
+  const returnPeriod = periodId
+    ? periods.find(
+        (period) => period.id === periodId || period.publicId === periodId,
+      )
+    : undefined;
+  if (periodId && !returnPeriod) {
+    redirect(`/groups/${group.publicId}?notice=period-not-found`);
+  }
+  const periodQuery = returnPeriod ? `?periodId=${returnPeriod.publicId}` : "";
+  redirectIfNonCanonical(
+    [
+      { received: groupId, canonical: group.publicId },
+      ...(periodId && returnPeriod
+        ? [{ received: periodId, canonical: returnPeriod.publicId }]
+        : []),
+    ],
+    `/groups/${group.publicId}/edit${periodQuery}`,
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <PageHeader eyebrow="Настройки группы" title={`Изменить группу ${group.name}`} />
-      <section className="rounded-md border bg-card p-5 sm:p-8" aria-label="Форма редактирования группы">
+      <FormCard label="Форма редактирования группы">
         <GroupForm
           mode="edit"
-          groupId={groupId}
+          groupId={group.publicId}
           defaultName={group.name}
-          returnPeriodId={returnPeriod?.id}
+          defaultPeriodType={group.periodType}
+          returnPeriodId={returnPeriod?.publicId}
         />
-      </section>
+      </FormCard>
     </div>
   );
 }

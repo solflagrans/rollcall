@@ -3,6 +3,8 @@ import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import type { PeriodType } from "@/features/groups/domain/periods";
+import type { GroupContext } from "@/features/groups/domain/models";
+import { entityIdSchema } from "@/features/groups/schemas";
 import type {
   PeriodWriteValues,
   RollcallRepository,
@@ -11,10 +13,17 @@ import { getDatabase } from "@/server/db/client";
 import {
   academicPeriods,
   groups,
+  lessons,
 } from "@/server/db/schema";
 
 export class DrizzleRollcallRepository implements RollcallRepository {
   private readonly database = getDatabase();
+
+  private groupReferenceFilter(groupReference: string) {
+    return entityIdSchema.safeParse(groupReference).success
+      ? eq(groups.id, groupReference)
+      : eq(groups.publicId, groupReference);
+  }
 
   async listGroups() {
     return this.database.select().from(groups).orderBy(asc(groups.createdAt), asc(groups.id));
@@ -24,13 +33,36 @@ export class DrizzleRollcallRepository implements RollcallRepository {
     const [group] = await this.database
       .select()
       .from(groups)
-      .where(eq(groups.id, groupId))
+      .where(this.groupReferenceFilter(groupId))
       .limit(1);
     return group;
   }
 
-  async insertGroup(name: string) {
-    const [group] = await this.database.insert(groups).values({ name }).returning();
+  async findGroupWithPeriods(groupId: string): Promise<GroupContext | undefined> {
+    const rows = await this.database
+      .select({ group: groups, period: academicPeriods })
+      .from(groups)
+      .leftJoin(academicPeriods, eq(academicPeriods.groupId, groups.id))
+      .where(this.groupReferenceFilter(groupId))
+      .orderBy(
+        asc(academicPeriods.startsOn),
+        asc(academicPeriods.number),
+        asc(academicPeriods.id),
+      );
+    const first = rows[0];
+    if (!first) return undefined;
+
+    return {
+      group: first.group,
+      periods: rows.flatMap(({ period }) => (period ? [period] : [])),
+    };
+  }
+
+  async insertGroup(name: string, periodType: PeriodType) {
+    const [group] = await this.database
+      .insert(groups)
+      .values({ name, periodType })
+      .returning();
     if (!group) throw new Error("Group insert returned no row");
     return group;
   }
@@ -39,7 +71,7 @@ export class DrizzleRollcallRepository implements RollcallRepository {
     const [group] = await this.database
       .update(groups)
       .set({ name, updatedAt: new Date() })
-      .where(eq(groups.id, groupId))
+      .where(this.groupReferenceFilter(groupId))
       .returning();
     return group;
   }
@@ -56,45 +88,31 @@ export class DrizzleRollcallRepository implements RollcallRepository {
     const [period] = await this.database
       .select()
       .from(academicPeriods)
-      .where(and(eq(academicPeriods.groupId, groupId), eq(academicPeriods.id, periodId)))
+      .where(
+        and(
+          eq(academicPeriods.groupId, groupId),
+          entityIdSchema.safeParse(periodId).success
+            ? eq(academicPeriods.id, periodId)
+            : eq(academicPeriods.publicId, periodId),
+        ),
+      )
       .limit(1);
     return period;
   }
 
-  async insertFirstPeriodAtomic(
-    groupId: string,
-    periodType: PeriodType,
-    values: PeriodWriteValues,
-  ) {
-    const result = await this.database.execute<{ id: string }>(sql`
-      with updated_group as (
-        update ${groups}
-        set ${groups.periodType} = ${periodType}, ${groups.updatedAt} = now()
-        where ${groups.id} = ${groupId}
-          and ${groups.periodType} is null
-          and not exists (
-            select 1 from ${academicPeriods}
-            where ${academicPeriods.groupId} = ${groupId}
-          )
-        returning ${groups.id}
-      )
-      insert into ${academicPeriods} (
-        ${academicPeriods.groupId},
-        ${academicPeriods.number},
-        ${academicPeriods.startsOn},
-        ${academicPeriods.endsOn}
-      )
-      select
-        updated_group.id,
-        ${values.number},
-        ${values.startsOn}::date,
-        ${values.endsOn}::date
-      from updated_group
-      returning ${academicPeriods.id}
-    `);
-
-    const insertedId = result.rows[0]?.id;
-    return insertedId ? this.findPeriod(groupId, insertedId) : undefined;
+  async getPeriodLessonDateBounds(periodId: string) {
+    const [bounds] = await this.database
+      .select({
+        earliestLessonDate: sql<string | null>`min(${lessons.lessonDate})`,
+        latestLessonDate: sql<string | null>`max(${lessons.lessonDate})`,
+      })
+      .from(lessons)
+      .where(eq(lessons.periodId, periodId));
+    if (!bounds?.earliestLessonDate || !bounds.latestLessonDate) return undefined;
+    return {
+      earliestLessonDate: bounds.earliestLessonDate,
+      latestLessonDate: bounds.latestLessonDate,
+    };
   }
 
   async insertPeriod(groupId: string, values: PeriodWriteValues) {

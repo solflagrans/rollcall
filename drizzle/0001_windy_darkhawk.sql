@@ -1,0 +1,4 @@
+ALTER TABLE "academic_periods" ADD COLUMN "public_id" varchar(12) DEFAULT substring(translate(encode(uuid_send(gen_random_uuid()), 'base64'), '+/', '-_') from 1 for 12) NOT NULL;--> statement-breakpoint
+ALTER TABLE "groups" ADD COLUMN "public_id" varchar(12) DEFAULT substring(translate(encode(uuid_send(gen_random_uuid()), 'base64'), '+/', '-_') from 1 for 12) NOT NULL;--> statement-breakpoint
+ALTER TABLE "academic_periods" ADD CONSTRAINT "academic_periods_public_id_unique" UNIQUE("public_id");--> statement-breakpoint
+ALTER TABLE "groups" ADD CONSTRAINT "groups_public_id_unique" UNIQUE("public_id");

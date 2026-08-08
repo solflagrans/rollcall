@@ -1,17 +1,26 @@
+import { FormCard } from "@/features/groups/components/form-card";
 import { GroupForm } from "@/features/groups/components/group-form";
 import { PageHeader } from "@/features/groups/components/page-header";
+import { SuccessNotice } from "@/features/groups/components/success-notice";
 
-export default function NewGroupPage() {
+export default async function NewGroupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string }>;
+}) {
+  const { notice } = await searchParams;
+
   return (
     <div className="mx-auto max-w-2xl space-y-8">
+      <SuccessNotice notice={notice} />
       <PageHeader
         eyebrow="Первый шаг"
         title="Создание учебной группы"
-        description="Создайте группу сейчас — учебные периоды можно добавить позже."
+        description="Укажите название группы и выберите единую систему учебных периодов."
       />
-      <section className="rounded-md border bg-card p-5 sm:p-8" aria-label="Форма создания группы">
+      <FormCard label="Форма создания группы">
         <GroupForm mode="create" />
-      </section>
+      </FormCard>
     </div>
   );
 }

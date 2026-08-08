@@ -7,12 +7,26 @@ import {
 
 describe("group validation", () => {
   it("accepts supported group names and normalizes them", () => {
-    expect(createGroupSchema.parse({ name: "  ИВТ-21  " })).toEqual({ name: "ИВТ-21" });
-    expect(createGroupSchema.parse({ name: "2436" })).toEqual({ name: "2436" });
+    expect(
+      createGroupSchema.parse({ name: "  ИВТ-21  ", periodType: "semester" }),
+    ).toEqual({ name: "ИВТ-21", periodType: "semester" });
+    expect(createGroupSchema.parse({ name: "2436", periodType: "year" })).toEqual({
+      name: "2436",
+      periodType: "year",
+    });
   });
 
   it("rejects an empty normalized name", () => {
-    expect(createGroupSchema.safeParse({ name: "   " }).success).toBe(false);
+    expect(
+      createGroupSchema.safeParse({ name: "   ", periodType: "quarter" }).success,
+    ).toBe(false);
+  });
+
+  it("requires a supported period type", () => {
+    expect(createGroupSchema.safeParse({ name: "2436" }).success).toBe(false);
+    expect(
+      createGroupSchema.safeParse({ name: "2436", periodType: "month" }).success,
+    ).toBe(false);
   });
 });
 

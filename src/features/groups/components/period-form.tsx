@@ -1,30 +1,34 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useMemo, type MouseEvent } from "react";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { createPeriodAction, updatePeriodAction } from "@/features/groups/actions";
+import { FormError } from "@/features/groups/components/form-error";
 import { FormField } from "@/features/groups/components/form-field";
 import { useUnsavedChanges } from "@/features/groups/components/use-unsaved-changes";
 import {
-  periodTypeLabels,
-  periodTypes,
+  findPeriodsWithInvertedNumberOrder,
+  getSuggestedPeriodNumber,
+  type PeriodSummary,
   type PeriodType,
 } from "@/features/groups/domain/periods";
 import {
+  formatPeriodName,
+  periodTypeCopy,
+} from "@/features/groups/presentation/period-copy";
+import {
   academicPeriodFormSchema,
-  firstAcademicPeriodFormSchema,
   type AcademicPeriodFormValues,
-  type FirstAcademicPeriodFormValues,
 } from "@/features/groups/schemas";
 
-type PeriodFormValues = AcademicPeriodFormValues & { periodType?: PeriodType | "" };
+function showDatePicker(event: MouseEvent<HTMLInputElement>) {
+  event.currentTarget.showPicker?.();
+}
 
 export function PeriodForm({
   mode,
@@ -32,118 +36,100 @@ export function PeriodForm({
   periodId,
   groupPeriodType,
   defaultValues,
+  periods,
 }: {
   mode: "create" | "edit";
   groupId: string;
   periodId?: string;
-  groupPeriodType: PeriodType | null;
+  groupPeriodType: PeriodType;
   defaultValues?: AcademicPeriodFormValues;
+  periods: PeriodSummary[];
 }) {
-  const firstPeriod = mode === "create" && groupPeriodType === null;
   const router = useRouter();
-  const startsOnRef = useRef<HTMLInputElement | null>(null);
-  const [overlapMessage, setOverlapMessage] = useState<string>();
-  const [saving, setSaving] = useState(false);
-  const schema = firstPeriod ? firstAcademicPeriodFormSchema : academicPeriodFormSchema;
+  const copy = periodTypeCopy[groupPeriodType];
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
-    getValues,
     formState: { errors, isDirty, isSubmitting },
-  } = useForm<PeriodFormValues>({
-    resolver: zodResolver(schema) as Resolver<PeriodFormValues>,
+  } = useForm<AcademicPeriodFormValues>({
+    resolver: zodResolver(academicPeriodFormSchema) as Resolver<AcademicPeriodFormValues>,
     defaultValues: {
-      periodType: groupPeriodType ?? "",
-      number: defaultValues?.number,
+      number: defaultValues?.number ?? getSuggestedPeriodNumber(periods),
       startsOn: defaultValues?.startsOn ?? "",
       endsOn: defaultValues?.endsOn ?? "",
     },
   });
-  const startsOnRegistration = register("startsOn");
+  const number = useWatch({ control, name: "number" });
+  const startsOn = useWatch({ control, name: "startsOn" });
 
-  const busy = isSubmitting || saving;
-  useUnsavedChanges(isDirty && !busy);
+  const numberOrderWarning = useMemo(() => {
+    if (!Number.isInteger(number) || periods.length === 0) return undefined;
 
-  const save = async (values: PeriodFormValues, forceOverlap: boolean) => {
-    if (saving) return;
-    setSaving(true);
-    setOverlapMessage(undefined);
-    const result = await (mode === "create"
-      ? createPeriodAction(
-          groupId,
-          values as FirstAcademicPeriodFormValues | AcademicPeriodFormValues,
-          firstPeriod,
-          forceOverlap,
+    const related = startsOn
+      ? findPeriodsWithInvertedNumberOrder(
+          { id: periodId ?? "new", number, startsOn, endsOn: startsOn },
+          periods,
         )
-      : updatePeriodAction(
-          groupId,
-          periodId!,
-          values as AcademicPeriodFormValues,
-          forceOverlap,
-        ));
+      : periods
+          .toSorted(
+            (left, right) =>
+              right.startsOn.localeCompare(left.startsOn) ||
+              right.endsOn.localeCompare(left.endsOn),
+          )
+          .filter((candidate, index) => index === 0 && number <= candidate.number);
+
+    if (related.length === 0) return undefined;
+    const names = related
+      .map((period) => `«${formatPeriodName(groupPeriodType, period.number)}»`)
+      .join(", ");
+    return `Номер не совпадает с хронологией относительно ${names}.`;
+  }, [groupPeriodType, number, periodId, periods, startsOn]);
+
+  useUnsavedChanges(isDirty && !isSubmitting);
+
+  const save = async (values: AcademicPeriodFormValues) => {
+    const result = await (mode === "create"
+      ? createPeriodAction(groupId, values)
+      : updatePeriodAction(groupId, periodId!, values));
 
     if (result.status === "success") {
       reset(values);
       router.push(result.redirectTo);
       router.refresh();
-      setSaving(false);
       return;
     }
-    if (result.status === "overlap") {
-      setOverlapMessage(result.message);
-      setSaving(false);
-      return;
-    }
-
     for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
-      if (field === "number" || field === "startsOn" || field === "endsOn" || field === "periodType") {
+      if (field === "number" || field === "startsOn" || field === "endsOn") {
         setError(field, { message });
       }
     }
     setError("root", { message: result.formError });
-    setSaving(false);
   };
 
-  const onSubmit = handleSubmit((values) => save(values, false));
-  const describedBy = (field: keyof PeriodFormValues) =>
-    errors[field] ? `${field}-error` : undefined;
+  const onSubmit = handleSubmit(save);
+  const describedBy = (field: keyof AcademicPeriodFormValues) =>
+    errors[field]
+      ? `${field}-error`
+      : field === "number" && numberOrderWarning
+        ? "number-warning"
+        : undefined;
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      {errors.root?.message ? (
-        <div role="alert" className="rounded-sm border border-destructive/40 bg-status-absent-background p-3 text-sm text-status-absent-foreground">
-          {errors.root.message}
-        </div>
-      ) : null}
+      <FormError message={errors.root?.message} />
 
-      {firstPeriod ? (
-        <FormField id="periodType" label="Тип периодов" error={errors.periodType?.message}>
-          <NativeSelect
-            id="periodType"
-            aria-invalid={Boolean(errors.periodType)}
-            aria-describedby={describedBy("periodType")}
-            {...register("periodType")}
-          >
-            <option value="">Выберите тип</option>
-            {periodTypes.map((type) => (
-              <option key={type} value={type}>
-                {periodTypeLabels[type]}
-              </option>
-            ))}
-          </NativeSelect>
-        </FormField>
-      ) : (
-        <div className="rounded-sm border bg-surface-subtle p-4">
-          <p className="text-sm text-muted-foreground">Тип периодов</p>
-          <p className="mt-1 font-medium">{periodTypeLabels[groupPeriodType!]}</p>
-        </div>
-      )}
-
-      <FormField id="number" label="Номер" error={errors.number?.message}>
+      <FormField
+        id="number"
+        label={copy.numberLabel}
+        error={errors.number?.message}
+        warning={numberOrderWarning}
+      >
         <Input
           id="number"
+          className="mt-1"
           type="number"
           inputMode="numeric"
           min={1}
@@ -159,58 +145,32 @@ export function PeriodForm({
         <FormField id="startsOn" label="Дата начала" error={errors.startsOn?.message}>
           <Input
             id="startsOn"
+            className="mt-1"
             type="date"
             aria-invalid={Boolean(errors.startsOn)}
             aria-describedby={describedBy("startsOn")}
-            {...startsOnRegistration}
-            ref={(element) => {
-              startsOnRegistration.ref(element);
-              startsOnRef.current = element;
-            }}
+            {...register("startsOn")}
+            onClick={showDatePicker}
           />
         </FormField>
         <FormField id="endsOn" label="Дата окончания" error={errors.endsOn?.message}>
           <Input
             id="endsOn"
+            className="mt-1"
             type="date"
             aria-invalid={Boolean(errors.endsOn)}
             aria-describedby={describedBy("endsOn")}
             {...register("endsOn")}
+            onClick={showDatePicker}
           />
         </FormField>
       </div>
 
-      {overlapMessage ? (
-        <div role="alert" className="rounded-md border border-status-late-border bg-status-late-background p-4 text-status-late-foreground">
-          <div className="flex gap-3">
-            <AlertTriangle aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">{overlapMessage}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setOverlapMessage(undefined);
-                    startsOnRef.current?.focus();
-                  }}
-                >
-                  Изменить даты
-                </Button>
-                <Button type="button" onClick={() => void save(getValues(), true)} disabled={busy}>
-                  Всё равно сохранить
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <Button type="submit" size="lg" disabled={busy}>
-        {busy
+      <Button type="submit" size="lg" disabled={isSubmitting}>
+        {isSubmitting
           ? "Сохранение…"
           : mode === "create"
-            ? "Создать период"
+            ? copy.createAction
             : "Сохранить изменения"}
       </Button>
     </form>

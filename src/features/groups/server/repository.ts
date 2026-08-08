@@ -1,5 +1,9 @@
 import type { PeriodType } from "@/features/groups/domain/periods";
-import type { AcademicPeriodRecord, GroupRecord } from "@/server/db/schema";
+import type {
+  AcademicPeriod,
+  Group,
+  GroupContext,
+} from "@/features/groups/domain/models";
 
 export interface PeriodWriteValues {
   number: number;
@@ -7,22 +11,26 @@ export interface PeriodWriteValues {
   endsOn: string;
 }
 
+export interface PeriodLessonDateBounds {
+  earliestLessonDate: string;
+  latestLessonDate: string;
+}
+
 export interface RollcallRepository {
-  listGroups(): Promise<GroupRecord[]>;
-  findGroup(groupId: string): Promise<GroupRecord | undefined>;
-  insertGroup(name: string): Promise<GroupRecord>;
-  updateGroup(groupId: string, name: string): Promise<GroupRecord | undefined>;
-  listPeriods(groupId: string): Promise<AcademicPeriodRecord[]>;
-  findPeriod(groupId: string, periodId: string): Promise<AcademicPeriodRecord | undefined>;
-  insertFirstPeriodAtomic(
-    groupId: string,
-    periodType: PeriodType,
-    values: PeriodWriteValues,
-  ): Promise<AcademicPeriodRecord | undefined>;
-  insertPeriod(groupId: string, values: PeriodWriteValues): Promise<AcademicPeriodRecord>;
+  listGroups(): Promise<Group[]>;
+  findGroup(groupId: string): Promise<Group | undefined>;
+  findGroupWithPeriods(groupId: string): Promise<GroupContext | undefined>;
+  insertGroup(name: string, periodType: PeriodType): Promise<Group>;
+  updateGroup(groupId: string, name: string): Promise<Group | undefined>;
+  listPeriods(groupId: string): Promise<AcademicPeriod[]>;
+  findPeriod(groupId: string, periodId: string): Promise<AcademicPeriod | undefined>;
+  getPeriodLessonDateBounds(
+    periodId: string,
+  ): Promise<PeriodLessonDateBounds | undefined>;
+  insertPeriod(groupId: string, values: PeriodWriteValues): Promise<AcademicPeriod>;
   updatePeriod(
     groupId: string,
     periodId: string,
     values: PeriodWriteValues,
-  ): Promise<AcademicPeriodRecord | undefined>;
+  ): Promise<AcademicPeriod | undefined>;
 }

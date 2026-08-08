@@ -1,21 +1,55 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
+
 import type { PeriodSummary } from "@/features/groups/domain/periods";
 import type {
   CreateAcademicPeriodInput,
-  CreateFirstAcademicPeriodInput,
   CreateGroupInput,
   UpdateAcademicPeriodInput,
   UpdateGroupInput,
 } from "@/features/groups/schemas";
 import { DrizzleRollcallRepository } from "@/features/groups/server/drizzle-repository";
 import { GroupsService } from "@/features/groups/server/service";
+import { getUserToday } from "@/features/preferences/server/user-time-zone";
 
 let service: GroupsService | undefined;
+
+export const GROUPS_CACHE_TAG = "groups:list";
+
+export function getGroupCacheTag(groupReference: string): string {
+  return `group:${groupReference}`;
+}
 
 function getService() {
   service ??= new GroupsService(new DrizzleRollcallRepository());
   return service;
+}
+
+const loadCachedGroups = unstable_cache(
+  () => getService().getGroups(),
+  ["groups-list"],
+  { revalidate: 15, tags: [GROUPS_CACHE_TAG] },
+);
+
+async function loadCachedGroupContext(groupReference: string) {
+  return unstable_cache(
+    () => getService().getGroupContext(groupReference),
+    ["group-context", groupReference],
+    { revalidate: 15, tags: [getGroupCacheTag(groupReference)] },
+  )();
+}
+
+async function loadCachedGroupPeriodContext(
+  groupReference: string,
+  periodReference: string,
+) {
+  return unstable_cache(
+    () => getService().getGroupPeriodContext(groupReference, periodReference),
+    ["group-period-context", groupReference, periodReference],
+    { revalidate: 15, tags: [getGroupCacheTag(groupReference)] },
+  )();
 }
 
 export function createGroup(input: CreateGroupInput) {
@@ -26,20 +60,15 @@ export function updateGroup(groupId: string, input: UpdateGroupInput) {
   return getService().updateGroup(groupId, input);
 }
 
-export function getGroup(groupId: string) {
-  return getService().getGroup(groupId);
-}
+export const getGroupContext = cache(loadCachedGroupContext);
 
-export function getGroups() {
-  return getService().getGroups();
-}
+export const getGroups = cache(loadCachedGroups);
 
-export function createFirstAcademicPeriod(
-  groupId: string,
-  input: CreateFirstAcademicPeriodInput,
-) {
-  return getService().createFirstAcademicPeriod(groupId, input);
-}
+export const getGroup = cache(async (groupId: string) =>
+  (await getGroupContext(groupId))?.group,
+);
+
+export const getGroupPeriodContext = cache(loadCachedGroupPeriodContext);
 
 export function createAcademicPeriod(groupId: string, input: CreateAcademicPeriodInput) {
   return getService().createAcademicPeriod(groupId, input);
@@ -53,16 +82,16 @@ export function updateAcademicPeriod(
   return getService().updateAcademicPeriod(groupId, periodId, input);
 }
 
-export function getAcademicPeriod(groupId: string, periodId: string) {
-  return getService().getAcademicPeriod(groupId, periodId);
-}
+export const getAcademicPeriod = cache((groupId: string, periodId: string) =>
+  getGroupPeriodContext(groupId, periodId).then((context) => context?.period),
+);
 
-export function getAcademicPeriods(groupId: string) {
-  return getService().getAcademicPeriods(groupId);
-}
+export const getAcademicPeriods = cache((groupId: string) =>
+  getGroupContext(groupId).then((context) => context?.periods ?? []),
+);
 
-export function getDefaultAcademicPeriod(groupId: string, today?: string) {
-  return getService().getDefaultAcademicPeriod(groupId, today);
+export async function getDefaultAcademicPeriod(groupId: string, today?: string) {
+  return getService().getDefaultAcademicPeriod(groupId, today ?? (await getUserToday()));
 }
 
 export function checkPeriodOverlap(groupId: string, period: PeriodSummary) {

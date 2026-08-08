@@ -2,24 +2,37 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 
 import { createGroupAction, updateGroupAction } from "@/features/groups/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { FormError } from "@/features/groups/components/form-error";
 import { FormField } from "@/features/groups/components/form-field";
 import { useUnsavedChanges } from "@/features/groups/components/use-unsaved-changes";
+import {
+  periodTypes,
+  type PeriodType,
+} from "@/features/groups/domain/periods";
+import { periodTypeCopy } from "@/features/groups/presentation/period-copy";
 import { createGroupSchema, type GroupFormValues } from "@/features/groups/schemas";
+
+type GroupFormFields = Omit<GroupFormValues, "periodType"> & {
+  periodType: PeriodType | "";
+};
 
 export function GroupForm({
   mode,
   groupId,
   defaultName = "",
+  defaultPeriodType,
   returnPeriodId,
 }: {
   mode: "create" | "edit";
   groupId?: string;
   defaultName?: string;
+  defaultPeriodType?: PeriodType;
   returnPeriodId?: string;
 }) {
   const router = useRouter();
@@ -29,9 +42,9 @@ export function GroupForm({
     reset,
     setError,
     formState: { errors, isDirty, isSubmitting },
-  } = useForm<GroupFormValues>({
-    resolver: zodResolver(createGroupSchema),
-    defaultValues: { name: defaultName },
+  } = useForm<GroupFormFields>({
+    resolver: zodResolver(createGroupSchema) as Resolver<GroupFormFields>,
+    defaultValues: { name: defaultName, periodType: defaultPeriodType ?? "" },
   });
 
   useUnsavedChanges(isDirty && !isSubmitting);
@@ -39,8 +52,8 @@ export function GroupForm({
   const onSubmit = handleSubmit(async (values) => {
     const result =
       mode === "create"
-        ? await createGroupAction(values)
-        : await updateGroupAction(groupId!, values, returnPeriodId);
+        ? await createGroupAction(values as GroupFormValues)
+        : await updateGroupAction(groupId!, { name: values.name }, returnPeriodId);
 
     if (result.status === "success") {
       reset(values);
@@ -51,30 +64,29 @@ export function GroupForm({
 
     if (result.status === "error") {
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
-        if (field === "name") setError("name", { message });
+        if (field === "name" || field === "periodType") {
+          setError(field, { message });
+        }
       }
       setError("root", { message: result.formError });
     }
   });
 
-  const errorDescription = errors.name ? "group-name-error" : "group-name-hint";
+  const errorDescription = errors.name ? "group-name-error" : undefined;
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      {errors.root?.message ? (
-        <div role="alert" className="rounded-sm border border-destructive/40 bg-status-absent-background p-3 text-sm text-status-absent-foreground">
-          {errors.root.message}
-        </div>
-      ) : null}
+      <FormError message={errors.root?.message} />
 
       <FormField
         id="group-name"
         label="Название группы"
-        hint="Например, 2436 или ИВТ-21"
         error={errors.name?.message}
+        className="space-y-3"
       >
         <Input
           id="group-name"
+          className="mt-[15px]"
           autoComplete="off"
           autoFocus
           aria-invalid={Boolean(errors.name)}
@@ -82,6 +94,32 @@ export function GroupForm({
           {...register("name")}
         />
       </FormField>
+
+      {mode === "create" ? (
+        <FormField
+          id="group-period-type"
+          label="Тип учебных периодов"
+          error={errors.periodType?.message}
+        >
+          <NativeSelect
+            id="group-period-type"
+            defaultValue=""
+            className="mt-3"
+            aria-invalid={Boolean(errors.periodType)}
+            aria-describedby={errors.periodType ? "group-period-type-error" : undefined}
+            {...register("periodType")}
+          >
+            <option value="" disabled hidden>
+              Выберите тип
+            </option>
+            {periodTypes.map((type) => (
+              <option key={type} value={type}>
+                {periodTypeCopy[type].plural}
+              </option>
+            ))}
+          </NativeSelect>
+        </FormField>
+      ) : null}
 
       <Button type="submit" size="lg" disabled={isSubmitting}>
         {isSubmitting

@@ -4,6 +4,7 @@ import { Inter, Manrope } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
+import { UserTimeZoneSync } from "@/features/preferences/components/user-time-zone-sync";
 
 import "./globals.css";
 
@@ -31,7 +32,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable} font-body antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <UserTimeZoneSync />
+            {children}
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

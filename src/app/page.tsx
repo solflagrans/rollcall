@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const groups = await getGroups();
-  redirect(groups[0] ? `/groups/${groups[0].id}` : "/groups/new");
+  redirect(groups[0] ? `/groups/${groups[0].publicId}` : "/groups/new");
 }

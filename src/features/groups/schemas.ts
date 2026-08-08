@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { normalizeGroupName } from "@/features/groups/domain/group";
 import { periodTypes } from "@/features/groups/domain/periods";
+import { isCalendarDate } from "@/lib/calendar-date";
 
 const normalizedGroupName = z
   .string()
@@ -14,22 +15,10 @@ const normalizedGroupName = z
   );
 
 const periodNumber = z
-  .number({ error: "Введите номер периода." })
-  .int("Номер периода должен быть целым числом.")
-  .min(1, "Номер периода должен быть не меньше 1.")
-  .max(99, "Номер периода должен быть не больше 99.");
-
-function isCalendarDate(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
-  if (!match) return false;
-  const [, year, month, day] = match;
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-  return (
-    date.getUTCFullYear() === Number(year) &&
-    date.getUTCMonth() === Number(month) - 1 &&
-    date.getUTCDate() === Number(day)
-  );
-}
+  .number({ error: "Введите номер." })
+  .int("Номер должен быть целым числом.")
+  .min(1, "Номер должен быть не меньше 1.")
+  .max(99, "Номер должен быть не больше 99.");
 
 const calendarDate = z
   .string()
@@ -55,33 +44,26 @@ function validateDateRange(
   }
 }
 
-export const createGroupSchema = z.object({ name: normalizedGroupName });
-export const updateGroupSchema = createGroupSchema;
-
-export const firstAcademicPeriodFormSchema = z
-  .object({
-    periodType: z.enum(periodTypes, { error: "Выберите тип периодов." }),
-    ...periodFields,
-  })
-  .superRefine(validateDateRange);
+export const createGroupSchema = z.object({
+  name: normalizedGroupName,
+  periodType: z.enum(periodTypes, { error: "Выберите тип учебных периодов." }),
+});
+export const updateGroupSchema = z.object({ name: normalizedGroupName });
 
 export const academicPeriodFormSchema = z.object(periodFields).superRefine(validateDateRange);
 
-export const createFirstAcademicPeriodSchema = firstAcademicPeriodFormSchema.and(
-  z.object({ forceOverlap: z.boolean().optional().default(false) }),
-);
-export const createAcademicPeriodSchema = academicPeriodFormSchema.and(
-  z.object({ forceOverlap: z.boolean().optional().default(false) }),
-);
+export const createAcademicPeriodSchema = academicPeriodFormSchema;
 export const updateAcademicPeriodSchema = createAcademicPeriodSchema;
 
 export const entityIdSchema = z.uuid("Некорректный идентификатор.");
+export const publicIdSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{12}$/u, "Некорректный публичный идентификатор.");
+export const entityReferenceSchema = z.union([entityIdSchema, publicIdSchema]);
 
 export type GroupFormValues = z.input<typeof createGroupSchema>;
-export type FirstAcademicPeriodFormValues = z.input<typeof firstAcademicPeriodFormSchema>;
 export type AcademicPeriodFormValues = z.input<typeof academicPeriodFormSchema>;
 export type CreateGroupInput = z.input<typeof createGroupSchema>;
 export type UpdateGroupInput = z.input<typeof updateGroupSchema>;
-export type CreateFirstAcademicPeriodInput = z.input<typeof createFirstAcademicPeriodSchema>;
 export type CreateAcademicPeriodInput = z.input<typeof createAcademicPeriodSchema>;
 export type UpdateAcademicPeriodInput = z.input<typeof updateAcademicPeriodSchema>;
