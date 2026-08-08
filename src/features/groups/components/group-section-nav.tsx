@@ -5,6 +5,7 @@ import {
   BookOpenText,
   ChartNoAxesCombined,
   ClipboardCheck,
+  TableProperties,
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -27,6 +28,7 @@ export function GroupSectionNav({
   const studentSection = studentRoute?.[2];
   const membersSelected = pathname.includes("/members");
   const disciplinesSelected = pathname.includes("/disciplines");
+  const summarySelected = pathname.includes("/summary");
   const statisticsSelected = pathname.includes("/statistics");
 
   const items = studentBasePath
@@ -49,8 +51,17 @@ export function GroupSectionNav({
           href: `/groups/${groupId}`,
           label: "Журнал",
           selected:
-            !membersSelected && !disciplinesSelected && !statisticsSelected,
+            !membersSelected &&
+            !disciplinesSelected &&
+            !summarySelected &&
+            !statisticsSelected,
           icon: BookOpenCheck,
+        },
+        {
+          href: `/groups/${groupId}/summary`,
+          label: "Сводная",
+          selected: summarySelected,
+          icon: TableProperties,
         },
         {
           href: `/groups/${groupId}/statistics`,

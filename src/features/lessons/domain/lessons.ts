@@ -77,6 +77,33 @@ export function getAttendanceProgress(
   return { total, marked, unmarked: total - marked, completed: marked === total };
 }
 
+export function getLessonAttendanceStatistics(
+  attendance: readonly Pick<AttendanceDraft, "status">[],
+) {
+  const progress = getAttendanceProgress(attendance);
+  const counts: Record<AttendanceStatus, number> = {
+    present: 0,
+    late: 0,
+    absent: 0,
+    excused: 0,
+  };
+
+  for (const { status } of attendance) {
+    if (status !== null) counts[status] += 1;
+  }
+
+  const attended = counts.present + counts.late;
+  return {
+    ...progress,
+    counts,
+    attended,
+    percentage:
+      progress.completed && progress.total > 0
+        ? Math.round((attended / progress.total) * 100)
+        : null,
+  };
+}
+
 export function fillUnmarkedAttendance<T extends AttendanceDraft>(
   attendance: readonly T[],
   status: AttendanceStatus,

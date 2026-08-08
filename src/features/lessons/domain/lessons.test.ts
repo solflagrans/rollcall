@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   fillUnmarkedAttendance,
   getAttendanceProgress,
+  getLessonAttendanceStatistics,
   isLessonCompleted,
   resetAttendance,
   selectJournalMembers,
@@ -47,6 +48,53 @@ describe("lesson attendance", () => {
     });
     expect(isLessonCompleted(fillUnmarkedAttendance(attendance, "absent"))).toBe(true);
     expect(isLessonCompleted([])).toBe(true);
+  });
+
+  it("summarizes a completed lesson snapshot with late counted as attendance", () => {
+    expect(
+      getLessonAttendanceStatistics([
+        { status: "present" },
+        { status: "late" },
+        { status: "absent" },
+        { status: "excused" },
+      ]),
+    ).toEqual({
+      total: 4,
+      marked: 4,
+      unmarked: 0,
+      completed: true,
+      attended: 2,
+      percentage: 50,
+      counts: {
+        present: 1,
+        late: 1,
+        absent: 1,
+        excused: 1,
+      },
+    });
+  });
+
+  it("keeps an incomplete lesson in progress mode and counts unmarked entries", () => {
+    expect(
+      getLessonAttendanceStatistics([
+        { status: "present" },
+        { status: "absent" },
+        { status: null },
+      ]),
+    ).toMatchObject({
+      total: 3,
+      marked: 2,
+      unmarked: 1,
+      completed: false,
+      attended: 1,
+      percentage: null,
+      counts: {
+        present: 1,
+        late: 0,
+        absent: 1,
+        excused: 0,
+      },
+    });
   });
 
   it("keeps active and historical members once and sorts by last and first name", () => {

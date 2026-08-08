@@ -9,6 +9,7 @@ import { useForm, type Resolver } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { LessonAttendanceStatistics } from "@/features/lessons/components/lesson-attendance-statistics";
 import {
   createLessonAction,
   updateLessonAttendanceAction,
@@ -198,19 +199,22 @@ export function LessonForm({
           Занятие
         </h2>
         {initialLesson ? (
-          <div className="grid gap-3 md:grid-cols-3">
-            <LessonDetail
-              label="Дата занятия"
-              value={formatCalendarDate(initialLesson.lessonDate)}
-            />
-            <LessonDetail
-              label="Дисциплина"
-              value={initialLesson.disciplineName}
-            />
-            <LessonDetail
-              label="Тип занятия"
-              value={lessonTypeCopy[initialLesson.lessonType]}
-            />
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <LessonDetail
+                label="Дата занятия"
+                value={formatCalendarDate(initialLesson.lessonDate)}
+              />
+              <LessonDetail
+                label="Дисциплина"
+                value={initialLesson.disciplineName}
+              />
+              <LessonDetail
+                label="Тип занятия"
+                value={lessonTypeCopy[initialLesson.lessonType]}
+              />
+            </div>
+            <LessonAttendanceStatistics attendance={attendance} />
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-3">
