@@ -28,6 +28,15 @@ export const getPeriodJournal = cache(
     getService().getJournal(groupId, periodId),
 );
 
+export const getCompletedMemberAttendance = cache(
+  (periodId: string, memberId: string) =>
+    getService().getCompletedMemberAttendance(periodId, memberId),
+);
+
+export const getMemberAttendancePeriodIds = cache((memberId: string) =>
+  getService().getMemberAttendancePeriodIds(memberId),
+);
+
 export const getLessonContext = cache(
   (
     groupReference: string,

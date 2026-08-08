@@ -147,6 +147,53 @@ class MemoryLessonsRepository implements LessonsRepository {
     };
   }
 
+  async listCompletedMemberAttendance(
+    targetPeriodId: string,
+    targetMemberId: string,
+  ) {
+    return this.created
+      .filter(
+        ({ lesson, attendance }) =>
+          lesson.periodId === targetPeriodId &&
+          attendance.length > 0 &&
+          attendance.every(({ status }) => status !== null),
+      )
+      .flatMap(({ lesson, attendance }) => {
+        const entry = attendance.find(
+          ({ groupMemberId }) => groupMemberId === targetMemberId,
+        );
+        if (!entry?.status) return [];
+        return [
+          {
+            lesson,
+            discipline: this.disciplines.find(
+              ({ id }) => id === lesson.disciplineId,
+            )!,
+            attendance: { ...entry, status: entry.status },
+          },
+        ];
+      })
+      .toSorted(
+        (left, right) =>
+          right.lesson.lessonDate.localeCompare(left.lesson.lessonDate) ||
+          right.lesson.id.localeCompare(left.lesson.id),
+      );
+  }
+
+  async listMemberAttendancePeriodIds(targetMemberId: string) {
+    return [
+      ...new Set(
+        this.created.flatMap(({ lesson, attendance }) =>
+          attendance.some(
+            ({ groupMemberId }) => groupMemberId === targetMemberId,
+          )
+            ? [lesson.periodId]
+            : [],
+        ),
+      ),
+    ];
+  }
+
   async findLesson(targetPeriodId: string, reference: string) {
     const created = this.created.find(
       ({ lesson }) =>
@@ -424,6 +471,94 @@ describe("LessonsService", () => {
       null,
       "excused",
     ]);
+  });
+
+  it("returns only completed lessons from one member snapshot, newest first", async () => {
+    const member = repository.members[0]!;
+    await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-10",
+      disciplineId,
+      lessonType: "lecture",
+      attendance: repository.members.slice(0, 2).map(({ publicId }) => ({
+        groupMemberId: publicId,
+        status: "present" as const,
+        comment: publicId === member.publicId ? "Хорошая работа" : null,
+      })),
+    });
+    await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-12",
+      disciplineId,
+      lessonType: "practice",
+      attendance: [
+        {
+          groupMemberId: member.publicId,
+          status: "late",
+          comment: null,
+        },
+      ],
+    });
+    await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-11",
+      disciplineId,
+      lessonType: "seminar",
+      attendance: repository.members.slice(0, 2).map(({ publicId }) => ({
+        groupMemberId: publicId,
+        status: "excused" as const,
+        comment: null,
+      })),
+    });
+
+    const attendance = await service.getCompletedMemberAttendance(
+      periodId,
+      member.id,
+    );
+
+    expect(attendance.map(({ lesson }) => lesson.lessonDate)).toEqual([
+      "2026-09-11",
+      "2026-09-10",
+    ]);
+    expect(attendance.map(({ attendance: entry }) => entry.status)).toEqual([
+      "excused",
+      "present",
+    ]);
+    expect(attendance[1]?.attendance.comment).toBe("Хорошая работа");
+
+    await expect(
+      service.getMemberAttendancePeriodIds(member.id),
+    ).resolves.toEqual([periodId]);
+
+    const memberOutsideSnapshots = repository.members[2]!;
+    await expect(
+      service.getCompletedMemberAttendance(periodId, memberOutsideSnapshots.id),
+    ).resolves.toEqual([]);
+  });
+
+  it("makes a period available from an incomplete lesson snapshot", async () => {
+    const member = repository.members[0]!;
+    const memberOutsideSnapshot = repository.members[2]!;
+
+    await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-12",
+      disciplineId,
+      lessonType: "practice",
+      attendance: [
+        {
+          groupMemberId: member.publicId,
+          status: "late",
+          comment: null,
+        },
+      ],
+    });
+
+    await expect(
+      service.getMemberAttendancePeriodIds(member.id),
+    ).resolves.toEqual([periodId]);
+    await expect(
+      service.getCompletedMemberAttendance(periodId, member.id),
+    ).resolves.toEqual([]);
+    await expect(
+      service.getMemberAttendancePeriodIds(memberOutsideSnapshot.id),
+    ).resolves.toEqual([]);
   });
 
   it("loads an existing lesson without querying the current active roster", async () => {

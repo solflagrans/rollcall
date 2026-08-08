@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const groupId = routeGroupId && routeGroupId !== "new" ? routeGroupId : undefined;
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="min-h-dvh w-full min-w-0 bg-background">
       <header
         className={cn(
           "sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur",
@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
       ) : null}
 
-      <div className={cn(groupId && "md:pl-60")}>
+      <div className={cn("min-w-0", groupId && "md:pl-60")}>
         <main className="app-container py-8 pb-[max(2rem,env(safe-area-inset-bottom))] md:py-10">
           {children}
         </main>

@@ -14,12 +14,15 @@ const messages = {
   "lesson-not-found": "Занятие не найдено",
   "group-not-found": "Группа не найдена. Создайте новую группу.",
   "period-not-found": "Период не найден. Открыта страница группы.",
+  "student-member-not-found":
+    "Участник для режима студента не найден. Открыт режим старосты.",
 } as const;
 
 const warningNotices = new Set<NoticeKind>([
   "group-not-found",
   "period-not-found",
   "lesson-not-found",
+  "student-member-not-found",
 ]);
 
 export type NoticeKind = keyof typeof messages;

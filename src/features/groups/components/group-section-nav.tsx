@@ -1,6 +1,11 @@
 "use client";
 
-import { BookOpenCheck, BookOpenText, UsersRound } from "lucide-react";
+import {
+  BookOpenCheck,
+  BookOpenText,
+  ClipboardCheck,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -14,29 +19,39 @@ export function GroupSectionNav({
   placement?: "mobile" | "sidebar";
 }) {
   const pathname = usePathname();
+  const studentView = pathname.includes("/student/");
   const membersSelected = pathname.includes("/members");
   const disciplinesSelected = pathname.includes("/disciplines");
 
-  const items = [
-    {
-      href: `/groups/${groupId}`,
-      label: "Журнал",
-      selected: !membersSelected && !disciplinesSelected,
-      icon: BookOpenCheck,
-    },
-    {
-      href: `/groups/${groupId}/disciplines`,
-      label: "Дисциплины",
-      selected: disciplinesSelected,
-      icon: BookOpenText,
-    },
-    {
-      href: `/groups/${groupId}/members`,
-      label: "Состав",
-      selected: membersSelected,
-      icon: UsersRound,
-    },
-  ];
+  const items = studentView
+    ? [
+        {
+          href: pathname,
+          label: "Моя посещаемость",
+          selected: true,
+          icon: ClipboardCheck,
+        },
+      ]
+    : [
+        {
+          href: `/groups/${groupId}`,
+          label: "Журнал",
+          selected: !membersSelected && !disciplinesSelected,
+          icon: BookOpenCheck,
+        },
+        {
+          href: `/groups/${groupId}/disciplines`,
+          label: "Дисциплины",
+          selected: disciplinesSelected,
+          icon: BookOpenText,
+        },
+        {
+          href: `/groups/${groupId}/members`,
+          label: "Состав",
+          selected: membersSelected,
+          icon: UsersRound,
+        },
+      ];
 
   if (placement === "sidebar") {
     return (

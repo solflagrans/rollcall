@@ -1,6 +1,16 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  isNotNull,
+  isNull,
+  notExists,
+  sql,
+} from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { entityIdSchema } from "@/features/groups/schemas";
 import type {
@@ -100,6 +110,70 @@ export class DrizzleLessonsRepository implements LessonsRepository {
         ]),
     );
     return { activeMembers, lessonRows, attendanceRows };
+  }
+
+  async listCompletedMemberAttendance(periodId: string, memberId: string) {
+    const incompleteAttendance = alias(
+      lessonAttendance,
+      "incomplete_attendance",
+    );
+    const rows = await readWithRetry("lessons.completed-member-attendance", () =>
+      this.database
+        .select({
+          lesson: lessons,
+          discipline: disciplines,
+          attendance: lessonAttendance,
+        })
+        .from(lessonAttendance)
+        .innerJoin(lessons, eq(lessons.id, lessonAttendance.lessonId))
+        .innerJoin(disciplines, eq(disciplines.id, lessons.disciplineId))
+        .where(
+          and(
+            eq(lessons.periodId, periodId),
+            eq(lessonAttendance.groupMemberId, memberId),
+            isNotNull(lessonAttendance.status),
+            notExists(
+              this.database
+                .select({ lessonId: incompleteAttendance.lessonId })
+                .from(incompleteAttendance)
+                .where(
+                  and(
+                    eq(incompleteAttendance.lessonId, lessons.id),
+                    isNull(incompleteAttendance.status),
+                  ),
+                ),
+            ),
+          ),
+        )
+        .orderBy(
+          desc(lessons.lessonDate),
+          desc(lessons.createdAt),
+          desc(lessons.id),
+        ),
+    );
+
+    return rows.flatMap(({ lesson, discipline, attendance }) =>
+      attendance.status
+        ? [
+            {
+              lesson,
+              discipline,
+              attendance: { ...attendance, status: attendance.status },
+            },
+          ]
+        : [],
+    );
+  }
+
+  async listMemberAttendancePeriodIds(memberId: string) {
+    const rows = await readWithRetry("lessons.member-attendance-periods", () =>
+      this.database
+        .selectDistinct({ periodId: lessons.periodId })
+        .from(lessonAttendance)
+        .innerJoin(lessons, eq(lessons.id, lessonAttendance.lessonId))
+        .where(eq(lessonAttendance.groupMemberId, memberId)),
+    );
+    return rows.map(({ periodId }) => periodId);
   }
 
   async findLesson(periodId: string, lessonReference: string) {

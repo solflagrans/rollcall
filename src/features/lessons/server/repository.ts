@@ -54,6 +54,14 @@ export interface PeriodJournalRows {
   attendanceRows: PeriodAttendanceRow[];
 }
 
+export interface CompletedMemberAttendance {
+  lesson: Lesson;
+  discipline: Discipline;
+  attendance: Omit<LessonAttendance, "status"> & {
+    status: AttendanceStatus;
+  };
+}
+
 export interface LessonsRepository {
   findGroupPeriod(
     groupReference: string,
@@ -62,6 +70,11 @@ export interface LessonsRepository {
   listPeriodDisciplines(groupId: string, periodId: string): Promise<Discipline[]>;
   listActiveMembers(groupId: string): Promise<GroupMember[]>;
   getPeriodJournalRows(groupId: string, periodId: string): Promise<PeriodJournalRows>;
+  listMemberAttendancePeriodIds(memberId: string): Promise<string[]>;
+  listCompletedMemberAttendance(
+    periodId: string,
+    memberId: string,
+  ): Promise<CompletedMemberAttendance[]>;
   findLesson(
     periodId: string,
     lessonReference: string,

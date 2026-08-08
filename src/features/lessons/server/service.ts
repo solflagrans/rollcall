@@ -136,6 +136,14 @@ export class LessonsService {
     return { lessons, members };
   }
 
+  getCompletedMemberAttendance(periodId: string, memberId: string) {
+    return this.repository.listCompletedMemberAttendance(periodId, memberId);
+  }
+
+  getMemberAttendancePeriodIds(memberId: string) {
+    return this.repository.listMemberAttendancePeriodIds(memberId);
+  }
+
   async getLessonContext(
     groupReference: string,
     periodReference: string,

@@ -34,16 +34,18 @@ export const getGroupMembersContext = cache(async (groupReference: string) => {
   return { group, members: await loadCachedMembers(group.id) };
 });
 
+export const getGroupMember = cache(
+  (groupId: string, memberReference: string) =>
+    getService().getMember(groupId, memberReference),
+);
+
 export const getGroupMemberContext = cache(
   async (groupReference: string, memberReference: string) => {
-    const context = await getGroupMembersContext(groupReference);
-    if (!context) return undefined;
+    const group = await getGroup(groupReference);
+    if (!group) return undefined;
     return {
-      ...context,
-      member: context.members.find(
-        (candidate) =>
-          candidate.id === memberReference || candidate.publicId === memberReference,
-      ),
+      group,
+      member: await getGroupMember(group.id, memberReference),
     };
   },
 );

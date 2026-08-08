@@ -19,11 +19,13 @@ export function PeriodSwitcher({
   periodType,
   periods,
   selectedPeriodId,
+  getPeriodHref,
 }: {
   groupId: string;
   periodType: PeriodType;
   periods: PeriodNavigationItem[];
   selectedPeriodId: string;
+  getPeriodHref?: (period: PeriodNavigationItem) => string;
 }) {
   return (
     <nav
@@ -36,7 +38,10 @@ export function PeriodSwitcher({
           return (
             <Link
               key={period.publicId}
-              href={`/groups/${groupId}/periods/${period.publicId}`}
+              href={
+                getPeriodHref?.(period) ??
+                `/groups/${groupId}/periods/${period.publicId}`
+              }
               aria-current={selected ? "page" : undefined}
               className={cn(
                 "flex h-11 items-center rounded-sm border px-4 text-sm font-medium transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
