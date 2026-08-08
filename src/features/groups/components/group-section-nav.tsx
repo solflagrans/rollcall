@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, CalendarRange, UsersRound } from "lucide-react";
+import { BookOpenCheck, BookOpenText, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -20,9 +20,9 @@ export function GroupSectionNav({
   const items = [
     {
       href: `/groups/${groupId}`,
-      label: "Учебные периоды",
+      label: "Журнал",
       selected: !membersSelected && !disciplinesSelected,
-      icon: CalendarRange,
+      icon: BookOpenCheck,
     },
     {
       href: `/groups/${groupId}/disciplines`,

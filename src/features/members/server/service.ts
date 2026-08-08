@@ -12,7 +12,7 @@ import {
 import { MembersServiceError } from "@/features/members/server/errors";
 import type { MembersRepository } from "@/features/members/server/repository";
 import { entityReferenceSchema } from "@/features/groups/schemas";
-import { isUniqueViolation } from "@/server/db/errors";
+import { isForeignKeyViolation, isUniqueViolation } from "@/server/db/errors";
 
 export class MembersService {
   constructor(private readonly repository: MembersRepository) {}
@@ -105,9 +105,16 @@ export class MembersService {
       throw new MembersServiceError("deletion_blocked");
     }
 
-    const deleted = await this.repository.deleteMember(groupId, member.id);
-    if (!deleted) throw new MembersServiceError("member_not_found");
-    return deleted;
+    try {
+      const deleted = await this.repository.deleteMember(groupId, member.id);
+      if (!deleted) throw new MembersServiceError("member_not_found");
+      return deleted;
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new MembersServiceError("deletion_blocked");
+      }
+      throw error;
+    }
   }
 
   private async requireEditableMember(

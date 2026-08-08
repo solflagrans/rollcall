@@ -16,6 +16,7 @@ import {
 import { isHeadman, type GroupMember } from "@/features/members/domain/members";
 import { formatMemberName } from "@/features/members/presentation/member-copy";
 import { cn } from "@/lib/utils";
+import { useActionLock } from "@/lib/use-action-lock";
 
 export function MemberActionsMenu({
   groupId,
@@ -27,7 +28,7 @@ export function MemberActionsMenu({
   compact?: boolean;
 }) {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const mutation = useActionLock();
   const [error, setError] = useState<string>();
   if (isHeadman(member)) return null;
 
@@ -37,19 +38,15 @@ export function MemberActionsMenu({
     action: () => ReturnType<typeof setMemberActiveAction>,
     close: () => void,
   ) => {
-    if (pending) return;
-    setPending(true);
     setError(undefined);
-    const result = await action();
+    const result = await mutation.run(action);
+    if (!result) return;
     if (result.status === "success") {
-      setPending(false);
       close();
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
     setError(result.formError);
-    setPending(false);
   };
 
   return (
@@ -71,7 +68,7 @@ export function MemberActionsMenu({
               type="button"
               role="menuitem"
               className={contextMenuItemClassName}
-              disabled={pending}
+              disabled={mutation.isLocked}
               onClick={() => {
                 if (!window.confirm(`Деактивировать участника «${memberName}»?`)) return;
                 void runAction(
@@ -88,7 +85,7 @@ export function MemberActionsMenu({
               type="button"
               role="menuitem"
               className={contextMenuItemClassName}
-              disabled={pending}
+              disabled={mutation.isLocked}
               onClick={() =>
                 void runAction(
                   () => setMemberActiveAction(groupId, member.publicId, true),
@@ -105,7 +102,7 @@ export function MemberActionsMenu({
             type="button"
             role="menuitem"
             className={cn(contextMenuItemClassName, "text-destructive hover:text-destructive")}
-            disabled={pending}
+            disabled={mutation.isLocked}
             onClick={() => {
               if (!window.confirm(`Удалить ошибочную запись «${memberName}» без возможности восстановления?`)) return;
               void runAction(

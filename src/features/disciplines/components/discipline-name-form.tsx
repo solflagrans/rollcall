@@ -19,6 +19,7 @@ import {
 } from "@/features/disciplines/schemas";
 import { FormError } from "@/features/groups/components/form-error";
 import { FormField } from "@/features/groups/components/form-field";
+import { useActionLock } from "@/lib/use-action-lock";
 
 type DisciplineSummary = Pick<Discipline, "publicId" | "name" | "isArchived">;
 
@@ -38,8 +39,8 @@ export function DisciplineNameForm({
   onCancel?: () => void;
 }) {
   const router = useRouter();
+  const submission = useActionLock();
   const [recovery, setRecovery] = useState<DisciplineSummary>();
-  const [recoveryPending, setRecoveryPending] = useState(false);
   const {
     register,
     handleSubmit,
@@ -62,19 +63,21 @@ export function DisciplineNameForm({
       if (stayOnPage) return;
     }
     router.push(result.redirectTo);
-    router.refresh();
   };
 
   const onSubmit = handleSubmit(async (values) => {
     setRecovery(undefined);
-    const result = discipline
-      ? await renameDisciplineAction(
-          groupId,
-          discipline.publicId,
-          values,
-          listStatus,
-        )
-      : await createDisciplineAction(groupId, values);
+    const result = await submission.run(() =>
+      discipline
+        ? renameDisciplineAction(
+            groupId,
+            discipline.publicId,
+            values,
+            listStatus,
+          )
+        : createDisciplineAction(groupId, values),
+    );
+    if (!result) return;
 
     if (result.status === "success") {
       finish(result);
@@ -88,14 +91,11 @@ export function DisciplineNameForm({
   });
 
   const restore = async () => {
-    if (!recovery || recoveryPending) return;
-    setRecoveryPending(true);
-    const result = await setDisciplineArchivedAction(
-      groupId,
-      recovery.publicId,
-      false,
+    if (!recovery) return;
+    const result = await submission.run(() =>
+      setDisciplineArchivedAction(groupId, recovery.publicId, false),
     );
-    setRecoveryPending(false);
+    if (!result) return;
     if (result.status === "success") {
       finish({
         ...result,
@@ -127,23 +127,30 @@ export function DisciplineNameForm({
         <Button
           type="button"
           variant="secondary"
-          disabled={recoveryPending}
+          disabled={submission.isLocked}
           onClick={() => void restore()}
         >
-          {recoveryPending ? "Восстановление…" : `Восстановить «${recovery.name}»`}
+          {submission.isLocked
+            ? "Восстановление…"
+            : `Восстановить «${recovery.name}»`}
         </Button>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={isSubmitting || recoveryPending}>
-          {isSubmitting
+        <Button type="submit" disabled={isSubmitting || submission.isLocked}>
+          {isSubmitting || submission.isLocked
             ? "Сохранение…"
             : discipline
               ? "Сохранить название"
               : "Создать дисциплину"}
         </Button>
         {onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={submission.isLocked}
+            onClick={onCancel}
+          >
             Отмена
           </Button>
         ) : null}

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Discipline } from "@/features/disciplines/domain/disciplines";
 import type { AcademicPeriod, Group } from "@/features/groups/domain/models";
@@ -96,6 +96,15 @@ class MemoryLessonsRepository implements LessonsRepository {
       : undefined;
   }
 
+  async findGroupPeriod(groupReference: string, periodReference: string) {
+    const group = await this.findGroup(groupReference);
+    if (!group) return undefined;
+    return {
+      group,
+      period: await this.findPeriod(group.id, periodReference),
+    };
+  }
+
   async listPeriodDisciplines(targetGroupId: string, targetPeriodId: string) {
     return targetGroupId === groupId && targetPeriodId === periodId
       ? this.disciplines
@@ -106,6 +115,115 @@ class MemoryLessonsRepository implements LessonsRepository {
     return this.members.filter(
       (member) => member.groupId === targetGroupId && member.isActive,
     );
+  }
+
+  async listPeriodLessons(targetPeriodId: string) {
+    return this.created
+      .filter(({ lesson }) => lesson.periodId === targetPeriodId)
+      .map(({ lesson }) => ({
+        lesson,
+        discipline: this.disciplines.find(
+          ({ id }) => id === lesson.disciplineId,
+        )!,
+      }));
+  }
+
+  async listPeriodAttendance(targetPeriodId: string) {
+    return this.created
+      .filter(({ lesson }) => lesson.periodId === targetPeriodId)
+      .flatMap(({ attendance }) =>
+        attendance.map((entry) => ({
+          attendance: entry,
+          member: this.members.find(({ id }) => id === entry.groupMemberId)!,
+        })),
+      );
+  }
+
+  async getPeriodJournalRows(targetGroupId: string, targetPeriodId: string) {
+    return {
+      activeMembers: await this.listActiveMembers(targetGroupId),
+      lessonRows: await this.listPeriodLessons(targetPeriodId),
+      attendanceRows: await this.listPeriodAttendance(targetPeriodId),
+    };
+  }
+
+  async findLesson(targetPeriodId: string, reference: string) {
+    const created = this.created.find(
+      ({ lesson }) =>
+        lesson.periodId === targetPeriodId &&
+        (lesson.id === reference || lesson.publicId === reference),
+    );
+    return created
+      ? {
+          lesson: created.lesson,
+          discipline: this.disciplines.find(
+            ({ id }) => id === created.lesson.disciplineId,
+          )!,
+        }
+      : undefined;
+  }
+
+  async findLessonWithAttendance(targetPeriodId: string, reference: string) {
+    const lesson = await this.findLesson(targetPeriodId, reference);
+    if (!lesson) return undefined;
+    return {
+      ...lesson,
+      attendance: await this.listLessonAttendance(lesson.lesson.id),
+    };
+  }
+
+  async listLessonAttendance(targetLessonId: string) {
+    const created = this.created.find(
+      ({ lesson }) => lesson.id === targetLessonId,
+    );
+    return (created?.attendance ?? []).map((entry) => ({
+      attendance: entry,
+      member: this.members.find(({ id }) => id === entry.groupMemberId)!,
+    }));
+  }
+
+  async updateLessonAttendance(
+    targetLessonId: string,
+    values: AttendanceWriteValues[],
+  ) {
+    const created = this.created.find(
+      ({ lesson }) => lesson.id === targetLessonId,
+    );
+    if (!created) return [];
+    created.attendance = created.attendance.map((entry) => {
+      const value = values.find(
+        ({ groupMemberId }) => groupMemberId === entry.groupMemberId,
+      );
+      return value ? { ...entry, ...value } : entry;
+    });
+    return created.attendance;
+  }
+
+  async updateLesson(
+    targetLessonId: string,
+    targetDisciplineId: string,
+    values: LessonWriteValues,
+  ) {
+    const created = this.created.find(
+      ({ lesson }) => lesson.id === targetLessonId,
+    );
+    if (!created) return undefined;
+    created.lesson = {
+      ...created.lesson,
+      ...values,
+      disciplineId: targetDisciplineId,
+      updatedAt: new Date("2026-08-09T00:00:00Z"),
+    };
+    return created.lesson;
+  }
+
+  async deleteLessonWithAttendance(targetLessonId: string) {
+    const index = this.created.findIndex(
+      ({ lesson }) => lesson.id === targetLessonId,
+    );
+    if (index < 0) return undefined;
+    const [deleted] = this.created.splice(index, 1);
+    return deleted?.lesson;
   }
 
   async insertLessonWithAttendance(
@@ -222,5 +340,234 @@ describe("LessonsService", () => {
         attendance: [],
       }),
     ).rejects.toBeInstanceOf(LessonsServiceError);
+  });
+
+  it("builds a historical journal and completes an existing lesson", async () => {
+    const created = await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-15",
+      disciplineId,
+      lessonType: "lecture",
+      attendance: [
+        {
+          groupMemberId: repository.members[0]!.publicId,
+          status: "present",
+          comment: null,
+        },
+      ],
+    });
+    repository.members[1]!.isActive = false;
+
+    const journal = await service.getJournal(groupId, periodId);
+    expect(journal.lessons).toHaveLength(1);
+    expect(journal.members.map(({ publicId }) => publicId)).toEqual([
+      repository.members[0]!.publicId,
+      repository.members[1]!.publicId,
+    ]);
+
+    const partiallyUpdated = await service.updateLessonAttendance(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      {
+        attendance: [
+          {
+            groupMemberId: repository.members[0]!.publicId,
+            status: null,
+            comment: null,
+          },
+          {
+            groupMemberId: repository.members[1]!.publicId,
+            status: "excused",
+            comment: "Справка",
+          },
+        ],
+      },
+      "2026-08-08",
+    );
+    expect(partiallyUpdated.attendance.map(({ status }) => status)).toEqual([
+      null,
+      "excused",
+    ]);
+
+    const updated = await service.updateLessonAttendance(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      {
+        attendance: [
+          {
+            groupMemberId: repository.members[0]!.publicId,
+            status: "present",
+            comment: null,
+          },
+        ],
+      },
+      "2026-08-08",
+    );
+    expect(isLessonCompleted(updated.attendance)).toBe(true);
+    const reset = await service.updateLessonAttendance(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      {
+        attendance: [
+          {
+            groupMemberId: repository.members[0]!.publicId,
+            status: null,
+            comment: null,
+          },
+        ],
+      },
+      "2026-08-08",
+    );
+    expect(reset.attendance.map(({ status }) => status)).toEqual([
+      null,
+      "excused",
+    ]);
+  });
+
+  it("loads an existing lesson without querying the current active roster", async () => {
+    const created = await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-16",
+      disciplineId,
+      lessonType: "lecture",
+      attendance: [],
+    });
+    const activeMembers = vi.spyOn(repository, "listActiveMembers");
+    const groupPeriod = vi.spyOn(repository, "findGroupPeriod");
+    const lessonWithAttendance = vi.spyOn(
+      repository,
+      "findLessonWithAttendance",
+    );
+
+    const context = await service.getLessonContext(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+    );
+
+    expect(context?.lesson?.id).toBe(created.lesson.id);
+    expect(activeMembers).not.toHaveBeenCalled();
+    expect(groupPeriod).toHaveBeenCalledTimes(1);
+    expect(lessonWithAttendance).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates lesson metadata without changing the attendance snapshot", async () => {
+    const created = await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-15",
+      disciplineId,
+      lessonType: "lecture",
+      attendance: [
+        {
+          groupMemberId: repository.members[0]!.publicId,
+          status: "present",
+          comment: "Первая пара",
+        },
+      ],
+    });
+    const archivedDiscipline: Discipline = {
+      ...recordBase(4),
+      groupId,
+      name: "Физика",
+      isArchived: true,
+    };
+    repository.disciplines.push(archivedDiscipline);
+    const snapshotBefore = structuredClone(created.attendance);
+
+    const updated = await service.updateLesson(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      {
+        lessonDate: "2026-10-20",
+        disciplineId: archivedDiscipline.publicId,
+        lessonType: "seminar",
+      },
+      "2026-08-08",
+    );
+
+    expect(updated.lesson).toMatchObject({
+      lessonDate: "2026-10-20",
+      disciplineId: archivedDiscipline.id,
+      lessonType: "seminar",
+    });
+    expect(created.attendance).toEqual(snapshotBefore);
+
+    await expect(
+      service.updateLesson(
+        groupId,
+        periodId,
+        created.lesson.publicId,
+        {
+          lessonDate: "2027-01-01",
+          disciplineId: archivedDiscipline.publicId,
+          lessonType: "seminar",
+        },
+        "2026-08-08",
+      ),
+    ).rejects.toMatchObject({ code: "date_outside_period" });
+    await expect(
+      service.updateLesson(
+        groupId,
+        periodId,
+        created.lesson.publicId,
+        {
+          lessonDate: "2026-10-20",
+          disciplineId: "notassigned0",
+          lessonType: "seminar",
+        },
+        "2026-08-08",
+      ),
+    ).rejects.toMatchObject({ code: "discipline_not_assigned" });
+  });
+
+  it("deletes a lesson together with attendance and blocks mutations after the period", async () => {
+    const created = await service.createLesson(groupId, periodId, {
+      lessonDate: "2026-09-15",
+      disciplineId,
+      lessonType: "lecture",
+      attendance: [],
+    });
+    repository.period.endsOn = "2026-08-07";
+
+    await expect(
+      service.updateLessonAttendance(
+        groupId,
+        periodId,
+        created.lesson.publicId,
+        { attendance: [] },
+        "2026-08-08",
+      ),
+    ).rejects.toMatchObject({ code: "period_completed" });
+    await expect(
+      service.updateLesson(
+        groupId,
+        periodId,
+        created.lesson.publicId,
+        {
+          lessonDate: "2026-08-07",
+          disciplineId,
+          lessonType: "practice",
+        },
+        "2026-08-08",
+      ),
+    ).rejects.toMatchObject({ code: "period_completed" });
+    await expect(
+      service.deleteLesson(
+        groupId,
+        periodId,
+        created.lesson.publicId,
+        "2026-08-08",
+      ),
+    ).rejects.toMatchObject({ code: "period_completed" });
+
+    repository.period.endsOn = "2026-12-31";
+    await service.deleteLesson(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      "2026-08-08",
+    );
+    expect(repository.created).toHaveLength(0);
   });
 });

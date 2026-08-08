@@ -5,6 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { DisciplinesRepository } from "@/features/disciplines/server/repository";
 import { entityIdSchema } from "@/features/groups/schemas";
 import { getDatabase } from "@/server/db/client";
+import { readWithRetry } from "@/server/db/read-retry";
 import {
   academicPeriodDisciplines,
   academicPeriods,
@@ -16,26 +17,30 @@ export class DrizzleDisciplinesRepository implements DisciplinesRepository {
   private readonly database = getDatabase();
 
   async listDisciplines(groupId: string) {
-    return this.database
-      .select()
-      .from(disciplines)
-      .where(eq(disciplines.groupId, groupId))
-      .orderBy(asc(disciplines.name), asc(disciplines.id));
+    return readWithRetry("disciplines.list", () =>
+      this.database
+        .select()
+        .from(disciplines)
+        .where(eq(disciplines.groupId, groupId))
+        .orderBy(asc(disciplines.name), asc(disciplines.id)),
+    );
   }
 
   async findDiscipline(groupId: string, disciplineReference: string) {
-    const [discipline] = await this.database
-      .select()
-      .from(disciplines)
-      .where(
-        and(
-          eq(disciplines.groupId, groupId),
-          entityIdSchema.safeParse(disciplineReference).success
-            ? eq(disciplines.id, disciplineReference)
-            : eq(disciplines.publicId, disciplineReference),
-        ),
-      )
-      .limit(1);
+    const [discipline] = await readWithRetry("disciplines.find", () =>
+      this.database
+        .select()
+        .from(disciplines)
+        .where(
+          and(
+            eq(disciplines.groupId, groupId),
+            entityIdSchema.safeParse(disciplineReference).success
+              ? eq(disciplines.id, disciplineReference)
+              : eq(disciplines.publicId, disciplineReference),
+          ),
+        )
+        .limit(1),
+    );
     return discipline;
   }
 
@@ -71,11 +76,15 @@ export class DrizzleDisciplinesRepository implements DisciplinesRepository {
   }
 
   async hasDisciplineBlockingReferences(disciplineId: string) {
-    const [assignment] = await this.database
-      .select({ disciplineId: academicPeriodDisciplines.disciplineId })
-      .from(academicPeriodDisciplines)
-      .where(eq(academicPeriodDisciplines.disciplineId, disciplineId))
-      .limit(1);
+    const [assignment] = await readWithRetry(
+      "disciplines.blocking-references",
+      () =>
+        this.database
+          .select({ disciplineId: academicPeriodDisciplines.disciplineId })
+          .from(academicPeriodDisciplines)
+          .where(eq(academicPeriodDisciplines.disciplineId, disciplineId))
+          .limit(1),
+    );
     if (assignment) return true;
 
     // Future lessons and statistics should be checked here before physical deletion.
@@ -91,33 +100,37 @@ export class DrizzleDisciplinesRepository implements DisciplinesRepository {
   }
 
   async listPeriodDisciplines(groupId: string, periodId: string) {
-    const rows = await this.database
-      .select({ discipline: disciplines })
-      .from(academicPeriodDisciplines)
-      .innerJoin(
-        academicPeriods,
-        eq(academicPeriods.id, academicPeriodDisciplines.periodId),
-      )
-      .innerJoin(
-        disciplines,
-        eq(disciplines.id, academicPeriodDisciplines.disciplineId),
-      )
-      .where(
-        and(
-          eq(academicPeriodDisciplines.periodId, periodId),
-          eq(academicPeriods.groupId, groupId),
-          eq(disciplines.groupId, groupId),
-        ),
-      )
-      .orderBy(asc(disciplines.name), asc(disciplines.id));
+    const rows = await readWithRetry("period-disciplines.list", () =>
+      this.database
+        .select({ discipline: disciplines })
+        .from(academicPeriodDisciplines)
+        .innerJoin(
+          academicPeriods,
+          eq(academicPeriods.id, academicPeriodDisciplines.periodId),
+        )
+        .innerJoin(
+          disciplines,
+          eq(disciplines.id, academicPeriodDisciplines.disciplineId),
+        )
+        .where(
+          and(
+            eq(academicPeriodDisciplines.periodId, periodId),
+            eq(academicPeriods.groupId, groupId),
+            eq(disciplines.groupId, groupId),
+          ),
+        )
+        .orderBy(asc(disciplines.name), asc(disciplines.id)),
+    );
     return rows.map(({ discipline }) => discipline);
   }
 
   async listPeriodDisciplineIds(periodId: string) {
-    const rows = await this.database
-      .select({ disciplineId: academicPeriodDisciplines.disciplineId })
-      .from(academicPeriodDisciplines)
-      .where(eq(academicPeriodDisciplines.periodId, periodId));
+    const rows = await readWithRetry("period-disciplines.list-ids", () =>
+      this.database
+        .select({ disciplineId: academicPeriodDisciplines.disciplineId })
+        .from(academicPeriodDisciplines)
+        .where(eq(academicPeriodDisciplines.periodId, periodId)),
+    );
     return rows.map(({ disciplineId }) => disciplineId);
   }
 
@@ -134,16 +147,20 @@ export class DrizzleDisciplinesRepository implements DisciplinesRepository {
     periodId: string,
     disciplineId: string,
   ) {
-    const [lesson] = await this.database
-      .select({ id: lessons.id })
-      .from(lessons)
-      .where(
-        and(
-          eq(lessons.periodId, periodId),
-          eq(lessons.disciplineId, disciplineId),
-        ),
-      )
-      .limit(1);
+    const [lesson] = await readWithRetry(
+      "period-disciplines.blocking-references",
+      () =>
+        this.database
+          .select({ id: lessons.id })
+          .from(lessons)
+          .where(
+            and(
+              eq(lessons.periodId, periodId),
+              eq(lessons.disciplineId, disciplineId),
+            ),
+          )
+          .limit(1),
+    );
     return Boolean(lesson);
   }
 

@@ -10,8 +10,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "node scripts/run-database-integration-tests.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
+    "db:validate": "drizzle-kit check",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "node scripts/check-database.mjs",
     "db:studio": "drizzle-kit studio"

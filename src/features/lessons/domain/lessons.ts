@@ -41,6 +41,34 @@ export interface AttendanceDraft {
   comment: string | null;
 }
 
+export interface JournalMember {
+  id: string;
+  publicId: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+}
+
+export function selectJournalMembers(
+  activeMembers: readonly JournalMember[],
+  historicalMembers: readonly JournalMember[],
+): JournalMember[] {
+  const members = new Map<string, JournalMember>();
+  for (const member of historicalMembers) members.set(member.id, member);
+  for (const member of activeMembers) members.set(member.id, member);
+
+  const collator = new Intl.Collator("ru", {
+    sensitivity: "base",
+    numeric: true,
+  });
+  return [...members.values()].toSorted(
+    (left, right) =>
+      collator.compare(left.lastName, right.lastName) ||
+      collator.compare(left.firstName, right.firstName) ||
+      left.id.localeCompare(right.id),
+  );
+}
+
 export function getAttendanceProgress(
   attendance: readonly Pick<AttendanceDraft, "status">[],
 ) {

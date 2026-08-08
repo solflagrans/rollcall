@@ -17,6 +17,7 @@ import {
 } from "@/features/groups/domain/periods";
 import { periodTypeCopy } from "@/features/groups/presentation/period-copy";
 import { createGroupSchema, type GroupFormValues } from "@/features/groups/schemas";
+import { useActionLock } from "@/lib/use-action-lock";
 
 type GroupFormFields = Omit<GroupFormValues, "periodType"> & {
   periodType: PeriodType | "";
@@ -36,6 +37,7 @@ export function GroupForm({
   returnPeriodId?: string;
 }) {
   const router = useRouter();
+  const submission = useActionLock();
   const {
     register,
     handleSubmit,
@@ -50,15 +52,16 @@ export function GroupForm({
   useUnsavedChanges(isDirty && !isSubmitting);
 
   const onSubmit = handleSubmit(async (values) => {
-    const result =
+    const result = await submission.run(() =>
       mode === "create"
-        ? await createGroupAction(values as GroupFormValues)
-        : await updateGroupAction(groupId!, { name: values.name }, returnPeriodId);
+        ? createGroupAction(values as GroupFormValues)
+        : updateGroupAction(groupId!, { name: values.name }, returnPeriodId),
+    );
+    if (!result) return;
 
     if (result.status === "success") {
       reset(values);
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
 
@@ -121,8 +124,8 @@ export function GroupForm({
         </FormField>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={isSubmitting}>
-        {isSubmitting
+      <Button type="submit" size="lg" disabled={isSubmitting || submission.isLocked}>
+        {isSubmitting || submission.isLocked
           ? "Сохранение…"
           : mode === "create"
             ? "Создать группу"

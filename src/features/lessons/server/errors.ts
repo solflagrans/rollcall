@@ -1,6 +1,8 @@
 export type LessonsServiceErrorCode =
   | "group_not_found"
   | "period_not_found"
+  | "lesson_not_found"
+  | "period_completed"
   | "discipline_not_assigned"
   | "date_outside_period"
   | "context_changed";

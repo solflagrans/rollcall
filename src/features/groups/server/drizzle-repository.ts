@@ -10,6 +10,7 @@ import type {
   RollcallRepository,
 } from "@/features/groups/server/repository";
 import { getDatabase } from "@/server/db/client";
+import { readWithRetry } from "@/server/db/read-retry";
 import {
   academicPeriods,
   groups,
@@ -26,29 +27,35 @@ export class DrizzleRollcallRepository implements RollcallRepository {
   }
 
   async listGroups() {
-    return this.database.select().from(groups).orderBy(asc(groups.createdAt), asc(groups.id));
+    return readWithRetry("groups.list", () =>
+      this.database.select().from(groups).orderBy(asc(groups.createdAt), asc(groups.id)),
+    );
   }
 
   async findGroup(groupId: string) {
-    const [group] = await this.database
-      .select()
-      .from(groups)
-      .where(this.groupReferenceFilter(groupId))
-      .limit(1);
+    const [group] = await readWithRetry("groups.find", () =>
+      this.database
+        .select()
+        .from(groups)
+        .where(this.groupReferenceFilter(groupId))
+        .limit(1),
+    );
     return group;
   }
 
   async findGroupWithPeriods(groupId: string): Promise<GroupContext | undefined> {
-    const rows = await this.database
-      .select({ group: groups, period: academicPeriods })
-      .from(groups)
-      .leftJoin(academicPeriods, eq(academicPeriods.groupId, groups.id))
-      .where(this.groupReferenceFilter(groupId))
-      .orderBy(
-        asc(academicPeriods.startsOn),
-        asc(academicPeriods.number),
-        asc(academicPeriods.id),
-      );
+    const rows = await readWithRetry("groups.find-with-periods", () =>
+      this.database
+        .select({ group: groups, period: academicPeriods })
+        .from(groups)
+        .leftJoin(academicPeriods, eq(academicPeriods.groupId, groups.id))
+        .where(this.groupReferenceFilter(groupId))
+        .orderBy(
+          asc(academicPeriods.startsOn),
+          asc(academicPeriods.number),
+          asc(academicPeriods.id),
+        ),
+    );
     const first = rows[0];
     if (!first) return undefined;
 
@@ -77,37 +84,47 @@ export class DrizzleRollcallRepository implements RollcallRepository {
   }
 
   async listPeriods(groupId: string) {
-    return this.database
-      .select()
-      .from(academicPeriods)
-      .where(eq(academicPeriods.groupId, groupId))
-      .orderBy(asc(academicPeriods.startsOn), asc(academicPeriods.number), asc(academicPeriods.id));
+    return readWithRetry("periods.list", () =>
+      this.database
+        .select()
+        .from(academicPeriods)
+        .where(eq(academicPeriods.groupId, groupId))
+        .orderBy(
+          asc(academicPeriods.startsOn),
+          asc(academicPeriods.number),
+          asc(academicPeriods.id),
+        ),
+    );
   }
 
   async findPeriod(groupId: string, periodId: string) {
-    const [period] = await this.database
-      .select()
-      .from(academicPeriods)
-      .where(
-        and(
-          eq(academicPeriods.groupId, groupId),
-          entityIdSchema.safeParse(periodId).success
-            ? eq(academicPeriods.id, periodId)
-            : eq(academicPeriods.publicId, periodId),
-        ),
-      )
-      .limit(1);
+    const [period] = await readWithRetry("periods.find", () =>
+      this.database
+        .select()
+        .from(academicPeriods)
+        .where(
+          and(
+            eq(academicPeriods.groupId, groupId),
+            entityIdSchema.safeParse(periodId).success
+              ? eq(academicPeriods.id, periodId)
+              : eq(academicPeriods.publicId, periodId),
+          ),
+        )
+        .limit(1),
+    );
     return period;
   }
 
   async getPeriodLessonDateBounds(periodId: string) {
-    const [bounds] = await this.database
-      .select({
-        earliestLessonDate: sql<string | null>`min(${lessons.lessonDate})`,
-        latestLessonDate: sql<string | null>`max(${lessons.lessonDate})`,
-      })
-      .from(lessons)
-      .where(eq(lessons.periodId, periodId));
+    const [bounds] = await readWithRetry("periods.lesson-date-bounds", () =>
+      this.database
+        .select({
+          earliestLessonDate: sql<string | null>`min(${lessons.lessonDate})`,
+          latestLessonDate: sql<string | null>`max(${lessons.lessonDate})`,
+        })
+        .from(lessons)
+        .where(eq(lessons.periodId, periodId)),
+    );
     if (!bounds?.earliestLessonDate || !bounds.latestLessonDate) return undefined;
     return {
       earliestLessonDate: bounds.earliestLessonDate,

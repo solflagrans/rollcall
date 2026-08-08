@@ -42,11 +42,15 @@ export const groupMembers = pgTable(
       "group_members_headman_active",
       sql`${table.role} <> 'headman' OR ${table.isActive}`,
     ),
+    check(
+      "group_members_email_normalized",
+      sql`${table.email} IS NULL OR (${table.email} = lower(btrim(${table.email})) AND btrim(${table.email}) <> '')`,
+    ),
     index("group_members_group_id_idx").on(table.groupId),
     index("group_members_group_active_idx").on(table.groupId, table.isActive),
     index("group_members_last_name_idx").on(table.lastName),
     uniqueIndex("group_members_group_email_unique")
-      .on(table.groupId, table.email)
+      .on(table.groupId, sql`lower(btrim(${table.email}))`)
       .where(sql`${table.email} IS NOT NULL`),
     uniqueIndex("group_members_one_headman_per_group")
       .on(table.groupId)

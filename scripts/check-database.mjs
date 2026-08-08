@@ -58,6 +58,7 @@ const requiredConstraints = [
   "group_members_first_name_not_blank",
   "group_members_last_name_not_blank",
   "group_members_headman_active",
+  "group_members_email_normalized",
   "group_members_group_id_groups_id_fk",
   "disciplines_public_id_unique",
   "disciplines_name_not_blank",
@@ -141,6 +142,43 @@ for (const requiredIndex of [
   if (!lessonIndexNames.has(requiredIndex)) {
     throw new Error(`В базе отсутствует индекс ${requiredIndex}.`);
   }
+}
+
+const [dataIntegrity] = await sql`
+  select
+    (
+      select count(*)::int
+      from lessons lesson
+      inner join academic_periods period on period.id = lesson.period_id
+      where lesson.lesson_date < period.starts_on
+        or lesson.lesson_date > period.ends_on
+    ) as lessons_outside_period,
+    (
+      select count(*)::int
+      from academic_period_disciplines assignment
+      inner join academic_periods period on period.id = assignment.period_id
+      inner join disciplines discipline on discipline.id = assignment.discipline_id
+      where period.group_id <> discipline.group_id
+    ) as cross_group_discipline_assignments,
+    (
+      select count(*)::int
+      from lesson_attendance attendance
+      inner join lessons lesson on lesson.id = attendance.lesson_id
+      inner join academic_periods period on period.id = lesson.period_id
+      inner join group_members member on member.id = attendance.group_member_id
+      where period.group_id <> member.group_id
+    ) as cross_group_attendance
+`;
+
+const integrityFailures = Object.entries(dataIntegrity ?? {}).filter(
+  ([, count]) => Number(count) > 0,
+);
+if (integrityFailures.length > 0) {
+  throw new Error(
+    `В данных нарушены инварианты: ${integrityFailures
+      .map(([name, count]) => `${name}=${count}`)
+      .join(", ")}.`,
+  );
 }
 
 console.log("Database schema check passed.");

@@ -29,14 +29,58 @@ export interface LessonCreationContext {
   activeMembers: GroupMember[];
 }
 
+export interface LessonGroupPeriodContext {
+  group: Group;
+  period?: AcademicPeriod;
+}
+
+export interface PeriodLessonRow {
+  lesson: Lesson;
+  discipline: Discipline;
+}
+
+export interface PeriodAttendanceRow {
+  attendance: LessonAttendance;
+  member: GroupMember;
+}
+
+export interface LessonWithAttendance extends PeriodLessonRow {
+  attendance: PeriodAttendanceRow[];
+}
+
+export interface PeriodJournalRows {
+  activeMembers: GroupMember[];
+  lessonRows: PeriodLessonRow[];
+  attendanceRows: PeriodAttendanceRow[];
+}
+
 export interface LessonsRepository {
-  findGroup(groupReference: string): Promise<Group | undefined>;
-  findPeriod(
-    groupId: string,
+  findGroupPeriod(
+    groupReference: string,
     periodReference: string,
-  ): Promise<AcademicPeriod | undefined>;
+  ): Promise<LessonGroupPeriodContext | undefined>;
   listPeriodDisciplines(groupId: string, periodId: string): Promise<Discipline[]>;
   listActiveMembers(groupId: string): Promise<GroupMember[]>;
+  getPeriodJournalRows(groupId: string, periodId: string): Promise<PeriodJournalRows>;
+  findLesson(
+    periodId: string,
+    lessonReference: string,
+  ): Promise<PeriodLessonRow | undefined>;
+  findLessonWithAttendance(
+    periodId: string,
+    lessonReference: string,
+  ): Promise<LessonWithAttendance | undefined>;
+  listLessonAttendance(lessonId: string): Promise<PeriodAttendanceRow[]>;
+  updateLessonAttendance(
+    lessonId: string,
+    attendance: AttendanceWriteValues[],
+  ): Promise<LessonAttendance[]>;
+  updateLesson(
+    lessonId: string,
+    disciplineId: string,
+    values: LessonWriteValues,
+  ): Promise<Lesson | undefined>;
+  deleteLessonWithAttendance(lessonId: string): Promise<Lesson | undefined>;
   insertLessonWithAttendance(
     periodId: string,
     disciplineId: string,

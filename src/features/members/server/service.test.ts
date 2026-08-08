@@ -14,6 +14,7 @@ const groupId = "00000000-0000-4000-8000-000000000001";
 class MemoryMembersRepository implements MembersRepository {
   members: GroupMember[] = [];
   blockedIds = new Set<string>();
+  deleteError?: unknown;
   private sequence = 1;
 
   async listMembers(targetGroupId: string) {
@@ -65,6 +66,7 @@ class MemoryMembersRepository implements MembersRepository {
   }
 
   async deleteMember(targetGroupId: string, memberId: string) {
+    if (this.deleteError) throw this.deleteError;
     const member = await this.findMember(targetGroupId, memberId);
     if (!member) return undefined;
     this.members = this.members.filter((candidate) => candidate.id !== member.id);
@@ -192,5 +194,26 @@ describe("MembersService", () => {
     repository.blockedIds.clear();
     await service.deleteMember(groupId, student.publicId);
     expect(await service.getMembers(groupId)).toHaveLength(1);
+  });
+
+  it("translates a concurrent attendance reference into a deletion conflict", async () => {
+    await service.createHeadman(groupId, {
+      lastName: "Петров",
+      firstName: "Пётр",
+      email: "",
+    });
+    const student = await service.createMember(groupId, {
+      lastName: "Иванов",
+      firstName: "Иван",
+      email: "",
+      role: "student",
+    });
+    repository.deleteError = Object.assign(new Error("foreign key violation"), {
+      code: "23503",
+    });
+
+    await expect(
+      service.deleteMember(groupId, student.publicId),
+    ).rejects.toMatchObject({ code: "deletion_blocked" });
   });
 });

@@ -6,7 +6,7 @@ import type {
 export const lessonTypeCopy: Record<LessonType, string> = {
   lecture: "Лекция",
   practice: "Практика",
-  laboratory: "Лабораторная работа",
+  laboratory: "Лабораторная",
   seminar: "Семинар",
 };
 

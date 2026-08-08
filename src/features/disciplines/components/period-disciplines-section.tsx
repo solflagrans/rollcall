@@ -12,6 +12,7 @@ import {
 } from "@/features/disciplines/actions";
 import { DisciplineNameForm } from "@/features/disciplines/components/discipline-name-form";
 import type { Discipline } from "@/features/disciplines/domain/disciplines";
+import { useActionLock } from "@/lib/use-action-lock";
 
 type DisciplineSummary = Pick<
   Discipline,
@@ -26,19 +27,21 @@ export function PeriodDisciplinesSection({
   disciplines,
   assignedDisciplines,
   openOnLoad = false,
+  compact = false,
 }: {
   groupId: string;
   periodId: string;
   disciplines: DisciplineSummary[];
   assignedDisciplines: DisciplineSummary[];
   openOnLoad?: boolean;
+  compact?: boolean;
 }) {
   const router = useRouter();
+  const mutation = useActionLock();
   const [open, setOpen] = useState(openOnLoad);
   const [creating, setCreating] = useState(false);
   const [pool, setPool] = useState(disciplines);
   const [selectedIds, setSelectedIds] = useState(() => new Set<string>());
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
 
   const assignedIds = useMemo(
@@ -53,40 +56,35 @@ export function PeriodDisciplinesSection({
     .toSorted((left, right) => collator.compare(left.name, right.name));
 
   const addSelected = async () => {
-    if (selectedIds.size === 0 || pending) return;
-    setPending(true);
+    if (selectedIds.size === 0) return;
     setError(undefined);
-    const result = await addPeriodDisciplinesAction(groupId, periodId, {
-      disciplineIds: [...selectedIds],
-    });
-    setPending(false);
+    const result = await mutation.run(() =>
+      addPeriodDisciplinesAction(groupId, periodId, {
+        disciplineIds: [...selectedIds],
+      }),
+    );
+    if (!result) return;
     if (result.status === "success") {
       setOpen(false);
       setCreating(false);
       setSelectedIds(new Set());
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
     setError(result.formError);
   };
 
   const remove = async (discipline: DisciplineSummary) => {
-    if (pending) return;
     if (!window.confirm(`Убрать дисциплину «${discipline.name}» из этого учебного периода?`)) {
       return;
     }
-    setPending(true);
     setError(undefined);
-    const result = await removePeriodDisciplineAction(
-      groupId,
-      periodId,
-      discipline.publicId,
+    const result = await mutation.run(() =>
+      removePeriodDisciplineAction(groupId, periodId, discipline.publicId),
     );
-    setPending(false);
+    if (!result) return;
     if (result.status === "success") {
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
     setError(result.formError);
@@ -110,71 +108,85 @@ export function PeriodDisciplinesSection({
   };
 
   return (
-    <section className="space-y-4" aria-labelledby="period-disciplines-title">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 id="period-disciplines-title" className="font-heading text-xl font-semibold">
-            Дисциплины
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {assignedDisciplines.length} {disciplineCountLabel(assignedDisciplines.length)}
-          </p>
+    <section
+      className={compact ? undefined : "space-y-4"}
+      aria-label={compact ? "Управление дисциплинами периода" : undefined}
+      aria-labelledby={compact ? undefined : "period-disciplines-title"}
+    >
+      {compact && assignedDisciplines.length > 0 ? (
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          <BookOpenText aria-hidden="true" />
+          Настроить дисциплины
+        </Button>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id="period-disciplines-title" className="font-heading text-xl font-semibold">
+              Дисциплины
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {assignedDisciplines.length} {disciplineCountLabel(assignedDisciplines.length)}
+            </p>
+          </div>
+          {assignedDisciplines.length > 0 ? (
+            <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+              <Plus aria-hidden="true" />
+              Добавить дисциплины
+            </Button>
+          ) : null}
         </div>
-        {assignedDisciplines.length > 0 ? (
-          <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-            <Plus aria-hidden="true" />
-            Добавить дисциплины
-          </Button>
-        ) : null}
-      </div>
+      )}
 
-      {error ? (
+      {error && !compact ? (
         <p role="alert" className="rounded-sm border border-destructive/40 bg-status-absent-background p-3 text-sm text-status-absent-foreground">
           {error}
         </p>
       ) : null}
 
-      {assignedDisciplines.length > 0 ? (
-        <div className="rounded-md border bg-card">
-          {assignedDisciplines.map((discipline) => (
-            <div
-              key={discipline.publicId}
-              className="flex min-h-14 items-center gap-3 border-b px-4 py-2 last:border-b-0"
-            >
-              <BookOpenText aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-              <p className="min-w-0 flex-1 font-medium">{discipline.name}</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={pending}
-                aria-label={`Убрать из периода: ${discipline.name}`}
-                onClick={() => void remove(discipline)}
+      {!compact ? (
+        assignedDisciplines.length > 0 ? (
+          <div className="rounded-md border bg-card">
+            {assignedDisciplines.map((discipline) => (
+              <div
+                key={discipline.publicId}
+                className="flex min-h-14 items-center gap-3 border-b px-4 py-2 last:border-b-0"
               >
-                <Unlink aria-hidden="true" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
-          <BookOpenText aria-hidden="true" className="size-8 text-muted-foreground" />
-          <h3 className="mt-4 font-heading text-lg font-semibold">
-            В этом периоде пока нет дисциплин
-          </h3>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Добавьте дисциплины из общего пула или создайте первую прямо здесь.
-          </p>
-          <Button type="button" className="mt-5" onClick={() => setOpen(true)}>
-            <Plus aria-hidden="true" />
-            Добавить дисциплины
-          </Button>
-        </div>
-      )}
+                <BookOpenText aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+                <p className="min-w-0 flex-1 font-medium">{discipline.name}</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={mutation.isLocked}
+                  aria-label={`Убрать из периода: ${discipline.name}`}
+                  onClick={() => void remove(discipline)}
+                >
+                  <Unlink aria-hidden="true" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
+            <BookOpenText aria-hidden="true" className="size-8 text-muted-foreground" />
+            <h3 className="mt-4 font-heading text-lg font-semibold">
+              В этом периоде пока нет дисциплин
+            </h3>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              Добавьте дисциплины из общего пула или создайте первую прямо здесь.
+            </p>
+            <Button type="button" className="mt-5" onClick={() => setOpen(true)}>
+              <Plus aria-hidden="true" />
+              Добавить дисциплины
+            </Button>
+          </div>
+        )
+      ) : null}
 
       <Dialog
         open={open}
         onOpenChange={(nextOpen) => {
+          if (mutation.isLocked) return;
           setOpen(nextOpen);
           if (!nextOpen) {
             setCreating(false);
@@ -186,6 +198,34 @@ export function PeriodDisciplinesSection({
         className="max-w-xl"
       >
         <div className="space-y-5">
+          {assignedDisciplines.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Подключённые дисциплины</p>
+              <div className="divide-y rounded-md border">
+                {assignedDisciplines.map((discipline) => (
+                  <div
+                    key={discipline.publicId}
+                    className="flex min-h-11 items-center gap-3 px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1 font-medium">
+                      {discipline.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={mutation.isLocked}
+                      aria-label={`Убрать из периода: ${discipline.name}`}
+                      onClick={() => void remove(discipline)}
+                    >
+                      <Unlink aria-hidden="true" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">Доступные дисциплины</p>
             <Button
@@ -252,12 +292,17 @@ export function PeriodDisciplinesSection({
           <div className="flex flex-wrap gap-2 border-t pt-4">
             <Button
               type="button"
-              disabled={selectedIds.size === 0 || pending}
+              disabled={selectedIds.size === 0 || mutation.isLocked}
               onClick={() => void addSelected()}
             >
-              {pending ? "Добавление…" : "Добавить выбранные"}
+              {mutation.isLocked ? "Добавление…" : "Добавить выбранные"}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={mutation.isLocked}
+              onClick={() => setOpen(false)}
+            >
               Отмена
             </Button>
           </div>

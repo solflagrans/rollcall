@@ -5,6 +5,7 @@ import {
   getAttendanceProgress,
   isLessonCompleted,
   resetAttendance,
+  selectJournalMembers,
   type AttendanceDraft,
 } from "@/features/lessons/domain/lessons";
 
@@ -46,5 +47,26 @@ describe("lesson attendance", () => {
     });
     expect(isLessonCompleted(fillUnmarkedAttendance(attendance, "absent"))).toBe(true);
     expect(isLessonCompleted([])).toBe(true);
+  });
+
+  it("keeps active and historical members once and sorts by last and first name", () => {
+    const historical = [
+      { id: "2", publicId: "member000002", firstName: "Яна", lastName: "Белов", isActive: false },
+      { id: "1", publicId: "member000001", firstName: "Анна", lastName: "Алексеева", isActive: false },
+    ];
+    const active = [
+      { ...historical[1]!, isActive: true },
+      { id: "3", publicId: "member000003", firstName: "Борис", lastName: "Белов", isActive: true },
+    ];
+
+    expect(
+      selectJournalMembers(active, historical).map(
+        ({ publicId, isActive }) => ({ publicId, isActive }),
+      ),
+    ).toEqual([
+      { publicId: "member000001", isActive: true },
+      { publicId: "member000003", isActive: true },
+      { publicId: "member000002", isActive: false },
+    ]);
   });
 });

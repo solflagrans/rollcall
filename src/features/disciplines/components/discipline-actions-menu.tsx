@@ -17,6 +17,7 @@ import {
 import { DisciplineNameForm } from "@/features/disciplines/components/discipline-name-form";
 import type { Discipline } from "@/features/disciplines/domain/disciplines";
 import { cn } from "@/lib/utils";
+import { useActionLock } from "@/lib/use-action-lock";
 
 export function DisciplineActionsMenu({
   groupId,
@@ -26,8 +27,8 @@ export function DisciplineActionsMenu({
   discipline: Discipline;
 }) {
   const router = useRouter();
+  const mutation = useActionLock();
   const [renameOpen, setRenameOpen] = useState(false);
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const status = discipline.isArchived ? "archived" : "active";
 
@@ -35,15 +36,12 @@ export function DisciplineActionsMenu({
     action: () => Promise<DisciplineActionResult>,
     close: () => void,
   ) => {
-    if (pending) return;
-    setPending(true);
     setError(undefined);
-    const result = await action();
-    setPending(false);
+    const result = await mutation.run(action);
+    if (!result) return;
     if (result.status === "success") {
       close();
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
     setError(result.formError);
@@ -71,7 +69,7 @@ export function DisciplineActionsMenu({
               type="button"
               role="menuitem"
               className={contextMenuItemClassName}
-              disabled={pending}
+              disabled={mutation.isLocked}
               onClick={() =>
                 void runAction(
                   () =>
@@ -99,7 +97,7 @@ export function DisciplineActionsMenu({
                 contextMenuItemClassName,
                 "text-destructive hover:text-destructive",
               )}
-              disabled={pending}
+              disabled={mutation.isLocked}
               onClick={() => {
                 if (
                   !window.confirm(

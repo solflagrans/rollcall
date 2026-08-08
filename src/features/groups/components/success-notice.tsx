@@ -8,11 +8,19 @@ const messages = {
   "period-created": "Учебный период создан",
   "period-updated": "Учебный период обновлён",
   "lesson-created": "Занятие сохранено",
+  "lesson-updated": "Занятие обновлено",
+  "attendance-updated": "Посещаемость занятия обновлена",
+  "lesson-deleted": "Занятие удалено",
+  "lesson-not-found": "Занятие не найдено",
   "group-not-found": "Группа не найдена. Создайте новую группу.",
   "period-not-found": "Период не найден. Открыта страница группы.",
 } as const;
 
-const warningNotices = new Set<NoticeKind>(["group-not-found", "period-not-found"]);
+const warningNotices = new Set<NoticeKind>([
+  "group-not-found",
+  "period-not-found",
+  "lesson-not-found",
+]);
 
 export type NoticeKind = keyof typeof messages;
 

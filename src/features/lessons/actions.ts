@@ -3,8 +3,17 @@
 import { ZodError } from "zod";
 
 import { formatCalendarDate } from "@/features/groups/presentation/period-copy";
-import type { LessonFormValues } from "@/features/lessons/schemas";
-import { createLesson } from "@/features/lessons/server/operations";
+import type {
+  LessonFormValues,
+  UpdateLessonAttendanceInput,
+  UpdateLessonInput,
+} from "@/features/lessons/schemas";
+import {
+  createLesson,
+  deleteLesson,
+  updateLesson,
+  updateLessonAttendance,
+} from "@/features/lessons/server/operations";
 import { LessonsServiceError } from "@/features/lessons/server/errors";
 import type { FormActionResult } from "@/lib/form-action";
 import { logUnexpectedOperationError } from "@/lib/server/log-operation-error";
@@ -47,7 +56,17 @@ function actionError(error: unknown): FormActionResult {
         formError: "Состав группы или дисциплины изменились. Обновите страницу и повторите попытку.",
       };
     }
-    if (error.code === "group_not_found" || error.code === "period_not_found") {
+    if (error.code === "period_completed") {
+      return {
+        status: "error",
+        formError: "Учебный период завершён. Занятие доступно только для просмотра.",
+      };
+    }
+    if (
+      error.code === "group_not_found" ||
+      error.code === "period_not_found" ||
+      error.code === "lesson_not_found"
+    ) {
       return { status: "error", formError: "Запрашиваемые данные не найдены." };
     }
   }
@@ -57,6 +76,61 @@ function actionError(error: unknown): FormActionResult {
     status: "error",
     formError: "Не удалось сохранить занятие. Повторите попытку.",
   };
+}
+
+export async function updateLessonAttendanceAction(
+  groupId: string,
+  periodId: string,
+  lessonId: string,
+  values: UpdateLessonAttendanceInput,
+): Promise<FormActionResult> {
+  try {
+    const result = await updateLessonAttendance(
+      groupId,
+      periodId,
+      lessonId,
+      values,
+    );
+    return {
+      status: "success",
+      redirectTo: `/groups/${result.group.publicId}/periods/${result.period.publicId}?notice=attendance-updated`,
+    };
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+export async function updateLessonAction(
+  groupId: string,
+  periodId: string,
+  lessonId: string,
+  values: UpdateLessonInput,
+): Promise<FormActionResult> {
+  try {
+    const result = await updateLesson(groupId, periodId, lessonId, values);
+    return {
+      status: "success",
+      redirectTo: `/groups/${result.group.publicId}/periods/${result.period.publicId}/lessons/${result.lesson.publicId}?notice=lesson-updated`,
+    };
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+export async function deleteLessonAction(
+  groupId: string,
+  periodId: string,
+  lessonId: string,
+): Promise<FormActionResult> {
+  try {
+    const result = await deleteLesson(groupId, periodId, lessonId);
+    return {
+      status: "success",
+      redirectTo: `/groups/${result.group.publicId}/periods/${result.period.publicId}?notice=lesson-deleted`,
+    };
+  } catch (error) {
+    return actionError(error);
+  }
 }
 
 export async function createLessonAction(

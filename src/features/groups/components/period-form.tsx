@@ -25,6 +25,7 @@ import {
   academicPeriodFormSchema,
   type AcademicPeriodFormValues,
 } from "@/features/groups/schemas";
+import { useActionLock } from "@/lib/use-action-lock";
 
 function showDatePicker(event: MouseEvent<HTMLInputElement>) {
   event.currentTarget.showPicker?.();
@@ -46,6 +47,7 @@ export function PeriodForm({
   periods: PeriodSummary[];
 }) {
   const router = useRouter();
+  const submission = useActionLock();
   const copy = periodTypeCopy[groupPeriodType];
   const {
     register,
@@ -91,14 +93,16 @@ export function PeriodForm({
   useUnsavedChanges(isDirty && !isSubmitting);
 
   const save = async (values: AcademicPeriodFormValues) => {
-    const result = await (mode === "create"
-      ? createPeriodAction(groupId, values)
-      : updatePeriodAction(groupId, periodId!, values));
+    const result = await submission.run(() =>
+      mode === "create"
+        ? createPeriodAction(groupId, values)
+        : updatePeriodAction(groupId, periodId!, values),
+    );
+    if (!result) return;
 
     if (result.status === "success") {
       reset(values);
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
     for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
@@ -166,8 +170,8 @@ export function PeriodForm({
         </FormField>
       </div>
 
-      <Button type="submit" size="lg" disabled={isSubmitting}>
-        {isSubmitting
+      <Button type="submit" size="lg" disabled={isSubmitting || submission.isLocked}>
+        {isSubmitting || submission.isLocked
           ? "Сохранение…"
           : mode === "create"
             ? copy.createAction

@@ -7,7 +7,11 @@ import { PeriodActionsMenu } from "@/features/groups/components/period-actions-m
 import { PeriodSwitcher } from "@/features/groups/components/period-switcher";
 import { StatusBadge } from "@/features/groups/components/status-badge";
 import { SuccessNotice } from "@/features/groups/components/success-notice";
-import { PeriodLessonsSection } from "@/features/lessons/components/period-lessons-section";
+import { PeriodJournal } from "@/features/lessons/components/period-journal";
+import { getPeriodJournal } from "@/features/lessons/server/operations";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import Link from "next/link";
 import {
   getPeriodStatus,
 } from "@/features/groups/domain/periods";
@@ -48,7 +52,11 @@ export default async function AcademicPeriodPage({
   );
   const periodName = formatPeriodName(group.periodType, period.number);
   const status = getPeriodStatus(period.startsOn, period.endsOn, await getUserToday());
-  const disciplineData = await getPeriodDisciplinesData(group.id, period.id);
+  const [disciplineData, journal] = await Promise.all([
+    getPeriodDisciplinesData(group.id, period.id),
+    getPeriodJournal(group.id, period.id),
+  ]);
+  const periodHref = `/groups/${group.publicId}/periods/${period.publicId}`;
 
   return (
     <div className="space-y-8">
@@ -62,12 +70,17 @@ export default async function AcademicPeriodPage({
 
       <div className="flex items-center justify-between gap-4">
         <StatusBadge status={status} />
-        <div>
-          <NewPeriodAction groupId={group.publicId} periodType={group.periodType} />
-        </div>
+        {disciplineData.assignedDisciplines.length > 0 ? (
+          <Button asChild size="lg">
+            <Link href={`${periodHref}/lessons/new`}>
+              <Plus aria-hidden="true" />
+              Новое занятие
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
-      <div className="flex min-w-0 items-start gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="min-w-0 flex-1">
           <PeriodSwitcher
             groupId={group.publicId}
@@ -76,27 +89,67 @@ export default async function AcademicPeriodPage({
             selectedPeriodId={period.publicId}
           />
         </div>
-        <PeriodActionsMenu
-          groupId={group.publicId}
-          periodId={period.publicId}
-          periodType={group.periodType}
-          periodNumber={period.number}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          <NewPeriodAction
+            groupId={group.publicId}
+            periodType={group.periodType}
+            secondary
+          />
+          <PeriodActionsMenu
+            groupId={group.publicId}
+            periodId={period.publicId}
+            periodType={group.periodType}
+            periodNumber={period.number}
+          />
+        </div>
       </div>
 
-      <PeriodDisciplinesSection
-        groupId={group.publicId}
-        periodId={period.publicId}
-        disciplines={disciplineData.disciplines}
-        assignedDisciplines={disciplineData.assignedDisciplines}
-        openOnLoad={addDisciplines === "1"}
-      />
-
-      <PeriodLessonsSection
-        groupId={group.publicId}
-        periodId={period.publicId}
-        hasDisciplines={disciplineData.assignedDisciplines.length > 0}
-      />
+      {disciplineData.assignedDisciplines.length === 0 ? (
+        <PeriodDisciplinesSection
+          groupId={group.publicId}
+          periodId={period.publicId}
+          disciplines={disciplineData.disciplines}
+          assignedDisciplines={disciplineData.assignedDisciplines}
+          openOnLoad={addDisciplines === "1"}
+        />
+      ) : (
+        <PeriodJournal
+          groupId={group.publicId}
+          periodId={period.publicId}
+          disciplines={disciplineData.assignedDisciplines}
+          lessons={journal.lessons.map((lesson) => ({
+            publicId: lesson.publicId,
+            lessonDate: lesson.lessonDate,
+            lessonType: lesson.lessonType,
+            discipline: {
+              publicId: lesson.discipline.publicId,
+              name: lesson.discipline.name,
+              isArchived: lesson.discipline.isArchived,
+            },
+            attendance: lesson.attendance.map(({ attendance, member }) => ({
+              groupMemberId: member.publicId,
+              status: attendance.status,
+              comment: attendance.comment,
+            })),
+          }))}
+          members={journal.members.map((member) => ({
+            publicId: member.publicId,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            isActive: member.isActive,
+          }))}
+          disciplineSettings={
+            <PeriodDisciplinesSection
+              groupId={group.publicId}
+              periodId={period.publicId}
+              disciplines={disciplineData.disciplines}
+              assignedDisciplines={disciplineData.assignedDisciplines}
+              openOnLoad={addDisciplines === "1"}
+              compact
+            />
+          }
+        />
+      )}
     </div>
   );
 }

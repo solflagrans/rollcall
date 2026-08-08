@@ -9,7 +9,10 @@ import { useForm, type Resolver } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { createLessonAction } from "@/features/lessons/actions";
+import {
+  createLessonAction,
+  updateLessonAttendanceAction,
+} from "@/features/lessons/actions";
 import {
   attendanceStatuses,
   fillUnmarkedAttendance,
@@ -29,9 +32,11 @@ import {
 } from "@/features/lessons/schemas";
 import { FormError } from "@/features/groups/components/form-error";
 import { FormField } from "@/features/groups/components/form-field";
+import { formatCalendarDate } from "@/features/groups/presentation/period-copy";
 import { useUnsavedChanges } from "@/features/groups/components/use-unsaved-changes";
 import { lessonTypes } from "@/features/lessons/domain/lessons";
 import { cn } from "@/lib/utils";
+import { useActionLock } from "@/lib/use-action-lock";
 
 type DisciplineOption = {
   publicId: string;
@@ -42,6 +47,8 @@ type MemberOption = {
   publicId: string;
   firstName: string;
   lastName: string;
+  status?: AttendanceStatus | null;
+  comment?: string | null;
 };
 
 type DraftEntry = AttendanceDraft & MemberOption;
@@ -58,6 +65,9 @@ export function LessonForm({
   defaultLessonDate,
   disciplines,
   members,
+  lessonId,
+  initialLesson,
+  readOnly = false,
 }: {
   groupId: string;
   periodId: string;
@@ -66,14 +76,23 @@ export function LessonForm({
   defaultLessonDate: string;
   disciplines: DisciplineOption[];
   members: MemberOption[];
+  lessonId?: string;
+  initialLesson?: {
+    lessonDate: string;
+    disciplineId: string;
+    disciplineName: string;
+    lessonType: (typeof lessonTypes)[number];
+  };
+  readOnly?: boolean;
 }) {
   const router = useRouter();
+  const submission = useActionLock();
   const [attendance, setAttendance] = useState<DraftEntry[]>(() =>
     members.map((member) => ({
       ...member,
       groupMemberId: member.publicId,
-      status: null,
-      comment: null,
+      status: member.status ?? null,
+      comment: member.comment ?? null,
     })),
   );
   const [expandedComments, setExpandedComments] = useState<Set<string>>(
@@ -89,14 +108,16 @@ export function LessonForm({
   } = useForm<LessonDetailsFormValues>({
     resolver: zodResolver(lessonDetailsSchema) as Resolver<LessonDetailsFormValues>,
     defaultValues: {
-      lessonDate: defaultLessonDate,
-      disciplineId: "",
-      lessonType: undefined,
+      lessonDate: initialLesson?.lessonDate ?? defaultLessonDate,
+      disciplineId: initialLesson?.disciplineId ?? "",
+      lessonType: initialLesson?.lessonType,
     },
   });
 
   const progress = useMemo(() => getAttendanceProgress(attendance), [attendance]);
-  useUnsavedChanges((isDirty || attendanceChanged) && !isSubmitting);
+  useUnsavedChanges(
+    !readOnly && (isDirty || attendanceChanged) && !isSubmitting,
+  );
 
   const updateEntry = (
     memberId: string,
@@ -132,19 +153,28 @@ export function LessonForm({
   };
 
   const save = async (values: LessonDetailsFormValues) => {
-    const result = await createLessonAction(groupId, periodId, {
-      ...values,
-      attendance: attendance.map(({ groupMemberId, status, comment }) => ({
+    const attendanceValues = attendance.map(
+      ({ groupMemberId, status, comment }) => ({
         groupMemberId,
         status,
         comment,
-      })),
-    });
+      }),
+    );
+    const result = await submission.run(() =>
+      lessonId
+        ? updateLessonAttendanceAction(groupId, periodId, lessonId, {
+            attendance: attendanceValues,
+          })
+        : createLessonAction(groupId, periodId, {
+            ...values,
+            attendance: attendanceValues,
+          }),
+    );
+    if (!result) return;
     if (result.status === "success") {
       reset(values);
       setAttendanceChanged(false);
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
     for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
@@ -167,68 +197,85 @@ export function LessonForm({
         <h2 id="lesson-details-title" className="font-heading text-xl font-semibold">
           Занятие
         </h2>
-        <div className="grid gap-5 md:grid-cols-3">
-          <FormField
-            id="lessonDate"
-            label="Дата занятия"
-            error={errors.lessonDate?.message}
-          >
-            <Input
-              id="lessonDate"
-              className="mt-1"
-              type="date"
-              min={startsOn}
-              max={endsOn}
-              aria-invalid={Boolean(errors.lessonDate)}
-              {...register("lessonDate")}
-              onClick={showDatePicker}
+        {initialLesson ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            <LessonDetail
+              label="Дата занятия"
+              value={formatCalendarDate(initialLesson.lessonDate)}
             />
-          </FormField>
+            <LessonDetail
+              label="Дисциплина"
+              value={initialLesson.disciplineName}
+            />
+            <LessonDetail
+              label="Тип занятия"
+              value={lessonTypeCopy[initialLesson.lessonType]}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-5 md:grid-cols-3">
+            <FormField
+              id="lessonDate"
+              label="Дата занятия"
+              error={errors.lessonDate?.message}
+            >
+              <Input
+                id="lessonDate"
+                className="mt-1"
+                type="date"
+                min={startsOn}
+                max={endsOn}
+                aria-invalid={Boolean(errors.lessonDate)}
+                {...register("lessonDate")}
+                onClick={showDatePicker}
+              />
+            </FormField>
 
-          <FormField
-            id="disciplineId"
-            label="Дисциплина"
-            error={errors.disciplineId?.message}
-          >
-            <NativeSelect
+            <FormField
               id="disciplineId"
-              className="mt-1"
-              aria-invalid={Boolean(errors.disciplineId)}
-              {...register("disciplineId")}
+              label="Дисциплина"
+              error={errors.disciplineId?.message}
             >
-              <option value="" disabled hidden>
-                Выберите дисциплину
-              </option>
-              {disciplines.map((discipline) => (
-                <option key={discipline.publicId} value={discipline.publicId}>
-                  {discipline.name}
+              <NativeSelect
+                id="disciplineId"
+                className="mt-1"
+                aria-invalid={Boolean(errors.disciplineId)}
+                {...register("disciplineId")}
+              >
+                <option value="" disabled hidden>
+                  Выберите дисциплину
                 </option>
-              ))}
-            </NativeSelect>
-          </FormField>
+                {disciplines.map((discipline) => (
+                  <option key={discipline.publicId} value={discipline.publicId}>
+                    {discipline.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FormField>
 
-          <FormField
-            id="lessonType"
-            label="Тип занятия"
-            error={errors.lessonType?.message}
-          >
-            <NativeSelect
+            <FormField
               id="lessonType"
-              className="mt-1"
-              aria-invalid={Boolean(errors.lessonType)}
-              {...register("lessonType")}
+              label="Тип занятия"
+              error={errors.lessonType?.message}
             >
-              <option value="" disabled hidden>
-                Выберите тип
-              </option>
-              {lessonTypes.map((lessonType) => (
-                <option key={lessonType} value={lessonType}>
-                  {lessonTypeCopy[lessonType]}
+              <NativeSelect
+                id="lessonType"
+                className="mt-1"
+                aria-invalid={Boolean(errors.lessonType)}
+                {...register("lessonType")}
+              >
+                <option value="" disabled hidden>
+                  Выберите тип
                 </option>
-              ))}
-            </NativeSelect>
-          </FormField>
-        </div>
+                {lessonTypes.map((lessonType) => (
+                  <option key={lessonType} value={lessonType}>
+                    {lessonTypeCopy[lessonType]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FormField>
+          </div>
+        )}
       </section>
 
       <section className="space-y-5" aria-labelledby="attendance-title">
@@ -246,7 +293,7 @@ export function LessonForm({
           </div>
 
           <div className="flex flex-col items-start gap-2">
-            {progress.unmarked > 0 ? (
+            {!readOnly && progress.unmarked > 0 ? (
               <>
                 <div className="flex flex-wrap justify-start gap-2">
                   <Button
@@ -269,7 +316,8 @@ export function LessonForm({
                 </p>
               </>
             ) : null}
-            {progress.marked > 0 || attendance.some(({ comment }) => comment) ? (
+            {!readOnly &&
+            (progress.marked > 0 || attendance.some(({ comment }) => comment)) ? (
               <Button type="button" variant="ghost" size="sm" onClick={clearAttendance}>
                 <RotateCcw aria-hidden="true" />
                 Сбросить отметки
@@ -309,70 +357,105 @@ export function LessonForm({
                       aria-label={`Статус: ${fullName}`}
                       className="grid min-w-0 grid-cols-2 gap-2 md:flex md:w-fit md:max-w-full md:flex-wrap md:justify-self-start md:gap-1.5"
                     >
-                      {attendanceStatuses.map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          aria-pressed={entry.status === status}
+                      {readOnly ? (
+                        <span
                           className={cn(
-                            "min-h-11 min-w-0 w-full whitespace-nowrap rounded-sm border px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-[clamp(2rem,3vw,2.5rem)] md:w-auto md:min-w-[clamp(5.5rem,8vw,7.5rem)] md:max-w-36 md:px-[clamp(0.5rem,1vw,0.875rem)] md:text-[clamp(0.75rem,1vw,0.875rem)]",
-                            entry.status === status
-                              ? selectedStatusClass[status]
-                              : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                            "inline-flex min-h-11 w-full items-center justify-center rounded-sm border px-3 text-sm font-medium md:min-h-10 md:w-auto md:min-w-32",
+                            entry.status
+                              ? selectedStatusClass[entry.status]
+                              : "border-input bg-background text-muted-foreground",
                           )}
-                          onClick={() => setStatus(entry.groupMemberId, status)}
                         >
-                          {attendanceStatusCopy[status]}
-                        </button>
-                      ))}
+                          {currentLabel}
+                        </span>
+                      ) : attendanceStatuses.map((status) => {
+                        const statusClassName = cn(
+                          "min-h-11 min-w-0 w-full whitespace-nowrap rounded-sm border px-2 text-sm font-medium md:min-h-[clamp(2rem,3vw,2.5rem)] md:w-auto md:min-w-[clamp(5.5rem,8vw,7.5rem)] md:max-w-36 md:px-[clamp(0.5rem,1vw,0.875rem)] md:text-[clamp(0.75rem,1vw,0.875rem)]",
+                          entry.status === status
+                            ? selectedStatusClass[status]
+                            : "bg-background text-muted-foreground",
+                        );
+                        return (
+                          <button
+                            key={status}
+                            type="button"
+                            aria-pressed={entry.status === status}
+                            className={cn(
+                              statusClassName,
+                              "transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                            )}
+                            onClick={() => setStatus(entry.groupMemberId, status)}
+                          >
+                            {attendanceStatusCopy[status]}
+                          </button>
+                        );
+                      })}
                     </div>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="justify-self-start md:size-8 md:px-0"
-                      aria-expanded={commentOpen}
-                      aria-controls={`comment-${entry.groupMemberId}`}
-                      aria-label={`Комментарий: ${fullName}`}
-                      onClick={() => {
-                        setExpandedComments((current) => {
-                          const next = new Set(current);
-                          if (next.has(entry.groupMemberId)) next.delete(entry.groupMemberId);
-                          else next.add(entry.groupMemberId);
-                          return next;
-                        });
-                      }}
-                    >
-                      <MessageSquare aria-hidden="true" />
-                      <span className="md:sr-only">
-                        {entry.comment ? "Комментарий добавлен" : "Комментарий"}
-                      </span>
-                    </Button>
+                    {!readOnly || entry.comment ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="justify-self-start md:size-8 md:px-0"
+                        aria-expanded={commentOpen}
+                        aria-controls={`comment-${entry.groupMemberId}`}
+                        aria-label={`Комментарий: ${fullName}`}
+                        onClick={() => {
+                          setExpandedComments((current) => {
+                            const next = new Set(current);
+                            if (next.has(entry.groupMemberId)) {
+                              next.delete(entry.groupMemberId);
+                            } else {
+                              next.add(entry.groupMemberId);
+                            }
+                            return next;
+                          });
+                        }}
+                      >
+                        <MessageSquare aria-hidden="true" />
+                        <span className="md:sr-only">
+                          {entry.comment ? "Комментарий добавлен" : "Комментарий"}
+                        </span>
+                      </Button>
+                    ) : (
+                      <span className="hidden md:block" />
+                    )}
                   </div>
 
                   {commentOpen ? (
                     <div id={`comment-${entry.groupMemberId}`} className="mt-4 md:ml-auto md:max-w-2xl">
-                      <label
-                        htmlFor={`comment-input-${entry.groupMemberId}`}
-                        className="text-sm font-medium"
-                      >
-                        Комментарий
-                      </label>
-                      <textarea
-                        id={`comment-input-${entry.groupMemberId}`}
-                        rows={2}
-                        maxLength={500}
-                        value={entry.comment ?? ""}
-                        className="mt-2 w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                        placeholder="Необязательный комментарий"
-                        onChange={(event) =>
-                          updateEntry(entry.groupMemberId, (current) => ({
-                            ...current,
-                            comment: event.target.value || null,
-                          }))
-                        }
-                      />
+                      {readOnly ? (
+                        <>
+                          <p className="text-sm font-medium">Комментарий</p>
+                          <p className="mt-2 whitespace-pre-wrap rounded-sm border bg-surface-subtle p-3 text-sm">
+                            {entry.comment}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <label
+                            htmlFor={`comment-input-${entry.groupMemberId}`}
+                            className="text-sm font-medium"
+                          >
+                            Комментарий
+                          </label>
+                          <textarea
+                            id={`comment-input-${entry.groupMemberId}`}
+                            rows={2}
+                            maxLength={500}
+                            value={entry.comment ?? ""}
+                            className="mt-2 w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                            placeholder="Необязательный комментарий"
+                            onChange={(event) =>
+                              updateEntry(entry.groupMemberId, (current) => ({
+                                ...current,
+                                comment: event.target.value || null,
+                              }))
+                            }
+                          />
+                        </>
+                      )}
                     </div>
                   ) : null}
                 </article>
@@ -381,15 +464,36 @@ export function LessonForm({
           </div>
         ) : (
           <div className="rounded-md border border-dashed bg-surface-subtle p-5 text-sm text-muted-foreground">
-            В активном составе нет участников. Занятие будет сохранено без отметок посещаемости.
+            {initialLesson
+              ? "В слепке состава этого занятия нет участников."
+              : "В активном составе нет участников. Занятие будет сохранено без отметок посещаемости."}
           </div>
         )}
       </section>
 
-      <Button type="submit" size="lg" disabled={isSubmitting}>
-        {isSubmitting ? "Сохранение…" : "Сохранить занятие"}
-      </Button>
+      {!readOnly ? (
+        <Button
+          type="submit"
+          size="lg"
+          disabled={isSubmitting || submission.isLocked}
+        >
+          {isSubmitting || submission.isLocked
+            ? "Сохранение…"
+            : lessonId
+              ? "Сохранить посещаемость"
+              : "Сохранить занятие"}
+        </Button>
+      ) : null}
     </form>
+  );
+}
+
+function LessonDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-sm border bg-surface-subtle px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 font-medium">{value}</p>
+    </div>
   );
 }
 

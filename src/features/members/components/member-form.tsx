@@ -24,6 +24,7 @@ import {
   memberFormSchema,
   type MemberFormValues,
 } from "@/features/members/schemas";
+import { useActionLock } from "@/lib/use-action-lock";
 
 type MemberFormMode = "headman" | "create" | "edit";
 
@@ -39,6 +40,7 @@ export function MemberForm({
   defaultValues?: Partial<MemberFormValues>;
 }) {
   const router = useRouter();
+  const submission = useActionLock();
   const {
     register,
     handleSubmit,
@@ -58,27 +60,28 @@ export function MemberForm({
   useUnsavedChanges(isDirty && !isSubmitting);
 
   const onSubmit = handleSubmit(async (values) => {
-    const result =
+    const result = await submission.run(() =>
       mode === "headman"
-        ? await createHeadmanAction(groupId, {
+        ? createHeadmanAction(groupId, {
             lastName: values.lastName,
             firstName: values.firstName,
             email: values.email ?? "",
           })
         : mode === "create"
-          ? await createMemberAction(groupId, {
+          ? createMemberAction(groupId, {
               ...values,
               email: values.email ?? "",
             })
-          : await updateMemberAction(groupId, memberId!, {
+          : updateMemberAction(groupId, memberId!, {
               ...values,
               email: values.email ?? "",
-            });
+            }),
+    );
+    if (!result) return;
 
     if (result.status === "success") {
       reset(values);
       router.push(result.redirectTo);
-      router.refresh();
       return;
     }
 
@@ -152,8 +155,8 @@ export function MemberForm({
         </FormField>
       )}
 
-      <Button type="submit" size="lg" disabled={isSubmitting}>
-        {isSubmitting
+      <Button type="submit" size="lg" disabled={isSubmitting || submission.isLocked}>
+        {isSubmitting || submission.isLocked
           ? "Сохранение…"
           : mode === "headman"
             ? "Добавить старосту"
