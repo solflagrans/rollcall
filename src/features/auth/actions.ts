@@ -7,6 +7,7 @@ import { ZodError } from "zod";
 import { getMembershipHome } from "@/features/auth/domain/models";
 import {
   emailOnlySchema,
+  normalizeReturnTo,
   resetPasswordSchema,
   signInSchema,
   signUpSchema,
@@ -75,6 +76,7 @@ export async function signUpAction(
 ): Promise<AuthActionResult> {
   try {
     const values = signUpSchema.parse(Object.fromEntries(formData));
+    const returnTo = normalizeReturnTo(formData.get("returnTo"));
     const { data, error } = await auth.signUp.email({
       email: values.email,
       password: values.password,
@@ -105,7 +107,7 @@ export async function signUpAction(
 
     return {
       status: "success",
-      redirectTo: `/auth/verify-email?email=${encodeURIComponent(values.email)}`,
+      redirectTo: `/auth/verify-email?email=${encodeURIComponent(values.email)}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`,
     };
   } catch (error) {
     if (error instanceof ZodError) return validationError(error);
@@ -119,13 +121,14 @@ export async function signInAction(
 ): Promise<AuthActionResult> {
   try {
     const values = signInSchema.parse(Object.fromEntries(formData));
+    const returnTo = normalizeReturnTo(formData.get("returnTo"));
     const { data, error } = await auth.signIn.email(values);
     const code = authErrorCode(error);
     if (error && (code.includes("VERIF") || code.includes("CONFIRM"))) {
       await sendEmailVerificationCode(values.email);
       return {
         status: "success",
-        redirectTo: `/auth/verify-email?email=${encodeURIComponent(values.email)}`,
+        redirectTo: `/auth/verify-email?email=${encodeURIComponent(values.email)}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`,
       };
     }
     if (error) {
@@ -146,10 +149,10 @@ export async function signInAction(
       await sendEmailVerificationCode(values.email);
       return {
         status: "success",
-        redirectTo: `/auth/verify-email?email=${encodeURIComponent(values.email)}`,
+        redirectTo: `/auth/verify-email?email=${encodeURIComponent(values.email)}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`,
       };
     }
-    return { status: "success", redirectTo: "/" };
+    return { status: "success", redirectTo: returnTo ?? "/" };
   } catch (error) {
     if (error instanceof ZodError) return validationError(error);
     return unexpectedAuthError("sign-in", error);
@@ -162,6 +165,7 @@ export async function verifyEmailAction(
 ): Promise<AuthActionResult> {
   try {
     const values = verificationSchema.parse(Object.fromEntries(formData));
+    const returnTo = normalizeReturnTo(formData.get("returnTo"));
     const { data, error } = await auth.emailOtp.verifyEmail({
       email: values.email,
       otp: values.code,
@@ -180,7 +184,7 @@ export async function verifyEmailAction(
 
     const pending = await consumePendingAuthProfile(data.user.id, data.user.email);
     if (pending) await saveAuthProfile(pending);
-    return { status: "success", redirectTo: "/" };
+    return { status: "success", redirectTo: returnTo ?? "/" };
   } catch (error) {
     if (error instanceof ZodError) return validationError(error);
     return unexpectedAuthError("verify-email", error);

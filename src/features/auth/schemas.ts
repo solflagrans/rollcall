@@ -64,3 +64,11 @@ export type SignUpInput = z.input<typeof signUpSchema>;
 export type SignInInput = z.input<typeof signInSchema>;
 export type VerificationInput = z.input<typeof verificationSchema>;
 export type ResetPasswordInput = z.input<typeof resetPasswordSchema>;
+
+export function normalizeReturnTo(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const path = value.trim();
+  return path.startsWith("/") && !path.startsWith("//") && !/[\r\n]/u.test(path)
+    ? path
+    : undefined;
+}

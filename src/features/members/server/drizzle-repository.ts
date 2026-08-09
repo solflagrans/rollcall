@@ -1,6 +1,7 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { entityIdSchema } from "@/features/groups/schemas";
 import type {
@@ -10,23 +11,93 @@ import type {
 import type { NormalizedMemberInput } from "@/features/members/schemas";
 import { getDatabase } from "@/server/db/client";
 import { readWithRetry } from "@/server/db/read-retry";
-import { groupMembers, lessonAttendance } from "@/server/db/schema";
+import {
+  authUserProfiles,
+  groupInvitations,
+  groupMembers,
+  lessonAttendance,
+} from "@/server/db/schema";
+
+const targetProfiles = alias(authUserProfiles, "invitation_target_profiles");
 
 export class DrizzleMembersRepository implements MembersRepository {
   private readonly database = getDatabase();
 
   async listMembers(groupId: string) {
-    return readWithRetry("members.list", () =>
+    const now = new Date();
+    const [rows, pendingInvitations, journalReferences] = await Promise.all([
+      readWithRetry("members.list", () =>
       this.database
-        .select()
+        .select({
+          member: groupMembers,
+          connectedProfile: {
+            firstName: authUserProfiles.firstName,
+            lastName: authUserProfiles.lastName,
+            rollcallId: authUserProfiles.rollcallId,
+          },
+        })
         .from(groupMembers)
+        .leftJoin(
+          authUserProfiles,
+          eq(authUserProfiles.userId, groupMembers.userId),
+        )
         .where(eq(groupMembers.groupId, groupId))
         .orderBy(
           asc(groupMembers.lastName),
           asc(groupMembers.firstName),
           asc(groupMembers.id),
-        ),
+        )),
+      readWithRetry("members.pending-invitations", () =>
+        this.database
+          .select({
+            memberId: groupInvitations.groupMemberId,
+            invitation: {
+              publicId: groupInvitations.publicId,
+              method: groupInvitations.method,
+              expiresAt: groupInvitations.expiresAt,
+            },
+            targetProfile: {
+              firstName: targetProfiles.firstName,
+              lastName: targetProfiles.lastName,
+              rollcallId: targetProfiles.rollcallId,
+            },
+          })
+          .from(groupInvitations)
+          .leftJoin(targetProfiles, eq(targetProfiles.userId, groupInvitations.targetUserId))
+          .where(
+            and(
+              eq(groupInvitations.groupId, groupId),
+              eq(groupInvitations.status, "pending"),
+              gt(groupInvitations.expiresAt, now),
+            ),
+          )
+          .orderBy(asc(groupInvitations.createdAt), asc(groupInvitations.id)),
+      ),
+      readWithRetry("members.journal-references", () =>
+        this.database
+          .select({ memberId: lessonAttendance.groupMemberId })
+          .from(lessonAttendance)
+          .innerJoin(groupMembers, eq(groupMembers.id, lessonAttendance.groupMemberId))
+          .where(eq(groupMembers.groupId, groupId)),
+      ),
+    ]);
+    const memberIdsWithJournalRecords = new Set(
+      journalReferences.map(({ memberId }) => memberId),
     );
+    const invitationsByMember = new Map<string, typeof pendingInvitations>();
+    for (const invitation of pendingInvitations) {
+      const current = invitationsByMember.get(invitation.memberId) ?? [];
+      current.push(invitation);
+      invitationsByMember.set(invitation.memberId, current);
+    }
+    return rows.map(({ member, connectedProfile }) => ({
+      ...member,
+      hasJournalRecords: memberIdsWithJournalRecords.has(member.id),
+      connectedProfile,
+      pendingInvitations: (invitationsByMember.get(member.id) ?? []).map(
+        ({ invitation, targetProfile }) => ({ ...invitation, targetProfile }),
+      ),
+    }));
   }
 
   async findMember(groupId: string, memberReference: string) {
@@ -92,7 +163,13 @@ export class DrizzleMembersRepository implements MembersRepository {
   async deleteMember(groupId: string, memberId: string) {
     const [member] = await this.database
       .delete(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId)))
+      .where(
+        and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.id, memberId),
+          isNull(groupMembers.userId),
+        ),
+      )
       .returning();
     return member;
   }

@@ -118,7 +118,6 @@ describe("GroupsService integration", () => {
     userId: "auth-user-1",
     firstName: "Пётр",
     lastName: "Петров",
-    email: "headman@example.com",
   };
 
   const createGroup = (input: Parameters<GroupsService["createGroup"]>[0]) =>

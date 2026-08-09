@@ -10,7 +10,6 @@ import type {
 } from "@/features/lessons/schemas";
 import { DrizzleLessonsRepository } from "@/features/lessons/server/drizzle-repository";
 import { LessonsService } from "@/features/lessons/server/service";
-import { getUserToday } from "@/features/preferences/server/user-time-zone";
 
 let service: LessonsService | undefined;
 
@@ -78,7 +77,6 @@ export async function updateLessonAttendance(
     periodReference,
     lessonReference,
     input,
-    await getUserToday(),
   );
 }
 
@@ -94,7 +92,6 @@ export async function updateLesson(
     periodReference,
     lessonReference,
     input,
-    await getUserToday(),
   );
 }
 
@@ -108,6 +105,5 @@ export async function deleteLesson(
     groupReference,
     periodReference,
     lessonReference,
-    await getUserToday(),
   );
 }

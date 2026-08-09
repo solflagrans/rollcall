@@ -20,7 +20,6 @@ export interface GroupCreator {
   userId: string;
   firstName: string;
   lastName: string;
-  email: string;
 }
 
 export interface RollcallRepository {

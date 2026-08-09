@@ -12,11 +12,11 @@ const roleSortOrder: Record<GroupMemberRole, number> = {
   student: 2,
 };
 
-export function sortMembers(
-  members: readonly GroupMember[],
+export function sortMembers<T extends GroupMember>(
+  members: readonly T[],
   key: MemberSortKey,
   direction: SortDirection,
-): GroupMember[] {
+): T[] {
   const multiplier = direction === "asc" ? 1 : -1;
 
   return members.toSorted((left, right) => {
@@ -36,12 +36,6 @@ function compareMemberField(
   right: GroupMember,
   key: MemberSortKey,
 ): number {
-  if (key === "email") {
-    if (left.email === right.email) return 0;
-    if (!left.email) return 1;
-    if (!right.email) return -1;
-    return collator.compare(left.email, right.email);
-  }
   if (key === "role") {
     return roleSortOrder[left.role] - roleSortOrder[right.role];
   }

@@ -32,7 +32,7 @@ export default async function MembersPage({
   const { group, members } = context;
   const status: MemberListStatus = query.status === "inactive" ? "inactive" : "active";
   const sort: MemberSortKey =
-    query.sort === "email" || query.sort === "role" ? query.sort : "lastName";
+    query.sort === "role" ? query.sort : "lastName";
   const direction: SortDirection = query.direction === "desc" ? "desc" : "asc";
 
   const canonicalSearch = new URLSearchParams();

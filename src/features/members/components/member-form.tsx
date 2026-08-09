@@ -51,7 +51,6 @@ export function MemberForm({
     defaultValues: {
       lastName: defaultValues?.lastName ?? "",
       firstName: defaultValues?.firstName ?? "",
-      email: defaultValues?.email ?? "",
       role: defaultValues?.role ?? "student",
     },
   });
@@ -61,14 +60,8 @@ export function MemberForm({
   const onSubmit = handleSubmit(async (values) => {
     const result = await submission.run(() =>
       mode === "create"
-          ? createMemberAction(groupId, {
-              ...values,
-              email: values.email ?? "",
-            })
-          : updateMemberAction(groupId, memberId!, {
-              ...values,
-              email: values.email ?? "",
-            }),
+          ? createMemberAction(groupId, values)
+          : updateMemberAction(groupId, memberId!, values),
     );
     if (!result) return;
 
@@ -79,7 +72,7 @@ export function MemberForm({
     }
 
     for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
-      if (field === "lastName" || field === "firstName" || field === "email" || field === "role") {
+      if (field === "lastName" || field === "firstName" || field === "role") {
         setError(field, { message });
       }
     }
@@ -116,19 +109,6 @@ export function MemberForm({
           />
         </FormField>
       </div>
-
-      <FormField id="email" label="Email" error={errors.email?.message}>
-        <Input
-          id="email"
-          className="mt-1"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          aria-invalid={Boolean(errors.email)}
-          aria-describedby={describedBy("email")}
-          {...register("email")}
-        />
-      </FormField>
 
       <FormField id="role" label="Роль" error={errors.role?.message}>
           <NativeSelect

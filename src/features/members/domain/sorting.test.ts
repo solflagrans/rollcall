@@ -18,7 +18,6 @@ const members: GroupMember[] = [
     publicId: "member000002",
     firstName: "Борис",
     lastName: "Яковлев",
-    email: null,
     role: "student",
   },
   {
@@ -27,7 +26,6 @@ const members: GroupMember[] = [
     publicId: "member000001",
     firstName: "Анна",
     lastName: "Алексеева",
-    email: "anna@example.com",
     role: "deputy",
   },
 ];
@@ -35,13 +33,6 @@ const members: GroupMember[] = [
 describe("member sorting", () => {
   it("sorts by surname ascending by default", () => {
     expect(sortMembers(members, "lastName", "asc").map((member) => member.id)).toEqual([
-      "1",
-      "2",
-    ]);
-  });
-
-  it("keeps missing emails after filled emails", () => {
-    expect(sortMembers(members, "email", "asc").map((member) => member.id)).toEqual([
       "1",
       "2",
     ]);

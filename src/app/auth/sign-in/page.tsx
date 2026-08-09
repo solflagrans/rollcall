@@ -3,9 +3,9 @@ import { redirectSignedInUser } from "@/features/auth/server/route-context";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
-  await redirectSignedInUser();
-  const { notice } = await searchParams;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ notice?: string; returnTo?: string }> }) {
+  const { notice, returnTo } = await searchParams;
+  await redirectSignedInUser(returnTo);
   return (
     <div className="space-y-6">
       <div>
@@ -15,7 +15,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       {notice === "password-reset" ? (
         <p role="status" className="rounded-sm border border-primary/20 bg-accent p-3 text-sm text-accent-foreground">Пароль изменён. Теперь можно войти.</p>
       ) : null}
-      <SignInForm />
+      <SignInForm returnTo={returnTo} />
     </div>
   );
 }

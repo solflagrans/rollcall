@@ -79,6 +79,9 @@ describe("LessonForm statistics", () => {
 
     expect(within(statistics).getByText("Отмечено 1 из 2")).toBeInTheDocument();
     expect(within(statistics).queryByText("100%")).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Сохранение посещаемости"),
+    ).toHaveTextContent("Отмечено 1 из 2");
 
     fireEvent.click(screen.getByRole("button", { name: "Сбросить отметки" }));
     expect(confirm).toHaveBeenCalledOnce();

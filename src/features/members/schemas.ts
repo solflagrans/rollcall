@@ -22,24 +22,9 @@ const personName = (label: "имя" | "фамилию") =>
         ),
     );
 
-const optionalEmail = z
-  .union([z.string(), z.null(), z.undefined()])
-  .transform((value) => value?.trim() ?? "")
-  .pipe(
-    z
-      .string()
-      .max(320, "Email должен быть не длиннее 320 символов.")
-      .refine(
-        (value) => value === "" || z.email().safeParse(value).success,
-        "Введите корректный email.",
-      ),
-  )
-  .transform((value) => (value === "" ? null : value.toLowerCase()));
-
 const memberFields = {
   lastName: personName("фамилию"),
   firstName: personName("имя"),
-  email: optionalEmail,
 };
 
 export const memberFormSchema = z.object({

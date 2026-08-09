@@ -15,11 +15,9 @@ const menuItemClassName =
 
 export function AccountMenu({
   profile,
-  email,
   placement = "header",
 }: {
   profile: AuthUserProfile;
-  email: string;
   placement?: "header" | "sidebar";
 }) {
   const [open, setOpen] = useState(false);
@@ -57,7 +55,7 @@ export function AccountMenu({
         variant="ghost"
         size={placement === "sidebar" ? "default" : "icon"}
         className={cn(
-          placement === "sidebar" && "h-auto min-h-11 w-full justify-start px-0 hover:bg-transparent",
+          placement === "sidebar" && "h-auto min-h-11 w-full justify-center px-0 hover:bg-transparent",
           placement === "header" && "sm:h-10 sm:w-auto sm:px-3",
         )}
         aria-haspopup="menu"
@@ -89,7 +87,12 @@ export function AccountMenu({
         >
           <div className="min-w-0 px-3 py-2">
             <p className="truncate text-sm font-medium" title={fullName}>{fullName}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground" title={email}>{email}</p>
+            <p
+              className="mt-0.5 truncate font-mono text-xs text-muted-foreground"
+              title={profile.rollcallId}
+            >
+              {profile.rollcallId}
+            </p>
           </div>
           <Separator className="my-1" />
           <Link

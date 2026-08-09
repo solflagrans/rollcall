@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 
 function AccountControls({
   profile,
-  email,
   memberships,
   currentGroupId,
   compact = false,
@@ -25,7 +24,6 @@ function AccountControls({
   showThemeToggle = false,
 }: {
   profile: AuthUserProfile;
-  email: string;
   memberships: UserMembership[];
   currentGroupId?: string;
   compact?: boolean;
@@ -60,7 +58,13 @@ function AccountControls({
       ) : null}
 
       <div className={cn("flex items-center justify-between gap-2", compact && "shrink-0")}>
-        <div className={cn("flex items-center gap-2", !compact && "w-full")}>
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            !compact && "w-full",
+            compact && showCreateGroup && "gap-0",
+          )}
+        >
           {showCreateGroup ? (
             <Button asChild variant="ghost" size="sm">
               <Link href="/groups/new">Создать группу</Link>
@@ -68,7 +72,6 @@ function AccountControls({
           ) : null}
           <AccountMenu
             profile={profile}
-            email={email}
             placement={compact ? "header" : "sidebar"}
           />
           {showThemeToggle ? <ThemeToggle /> : null}
@@ -84,7 +87,6 @@ export function AppShell({
 }: {
   children: React.ReactNode;
   viewer: {
-    user: { email: string };
     profile: AuthUserProfile;
     memberships: UserMembership[];
   };
@@ -108,7 +110,6 @@ export function AppShell({
         <div className="flex items-center gap-2">
           <AccountControls
             profile={viewer.profile}
-            email={viewer.user.email}
             memberships={viewer.memberships}
             currentGroupId={groupId}
             compact
@@ -131,7 +132,6 @@ export function AppShell({
           <div className="border-t p-3">
             <AccountControls
               profile={viewer.profile}
-              email={viewer.user.email}
               memberships={viewer.memberships}
               currentGroupId={groupId}
               showThemeToggle

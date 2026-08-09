@@ -2,9 +2,10 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import Link from "next/link";
 
 import { MemberActionsMenu } from "@/features/members/components/member-actions-menu";
+import { MemberInvitationControls } from "@/features/invitations/components/member-invitation-controls";
 import { MemberRoleBadge } from "@/features/members/components/member-role-badge";
 import type {
-  GroupMember,
+  GroupMemberListItem,
   MemberListStatus,
   MemberSortKey,
   SortDirection,
@@ -24,7 +25,7 @@ export function MemberRoster({
   direction,
 }: {
   groupId: string;
-  members: GroupMember[];
+  members: GroupMemberListItem[];
   status: MemberListStatus;
   sort: MemberSortKey;
   direction: SortDirection;
@@ -83,20 +84,13 @@ export function MemberRoster({
                   />
                   <SortableHeader
                     groupId={groupId}
-                    label="Email"
-                    column="email"
-                    status={status}
-                    sort={sort}
-                    direction={direction}
-                  />
-                  <SortableHeader
-                    groupId={groupId}
                     label="Роль"
                     column="role"
                     status={status}
                     sort={sort}
                     direction={direction}
                   />
+                  <th scope="col" className="px-4 py-3 font-medium">Подключение аккаунта</th>
                   <th scope="col" className="w-16 px-4 py-3">
                     <span className="sr-only">Действия</span>
                   </th>
@@ -106,14 +100,36 @@ export function MemberRoster({
                 {visibleMembers.map((member) => (
                   <tr key={member.publicId} className="border-b last:border-b-0">
                     <td className="h-16 px-4 py-3 font-medium">{formatMemberName(member)}</td>
-                    <td className="h-16 px-4 py-3 text-muted-foreground">
-                      {member.email ?? "—"}
-                    </td>
                     <td className="h-16 px-4 py-3">
                       <MemberRoleBadge role={member.role} />
                     </td>
+                    <td className="min-w-64 px-4 py-3">
+                      <MemberInvitationControls
+                        groupId={groupId}
+                        member={{
+                          publicId: member.publicId,
+                          firstName: member.firstName,
+                          lastName: member.lastName,
+                          isActive: member.isActive,
+                          isConnected: Boolean(member.userId),
+                          connectedProfile: member.connectedProfile,
+                          pendingInvitations: member.pendingInvitations,
+                        }}
+                      />
+                    </td>
                     <td className="h-16 px-4 py-3 text-right">
-                      <MemberActionsMenu groupId={groupId} member={member} compact />
+                      <MemberActionsMenu
+                        groupId={groupId}
+                        member={{
+                          publicId: member.publicId,
+                          firstName: member.firstName,
+                          lastName: member.lastName,
+                          role: member.role,
+                          isActive: member.isActive,
+                          canDelete: !member.userId && !member.hasJournalRecords,
+                        }}
+                        compact
+                      />
                     </td>
                   </tr>
                 ))}
@@ -129,16 +145,35 @@ export function MemberRoster({
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{formatMemberName(member)}</p>
-                  {member.email ? (
-                    <p className="mt-1 truncate text-sm text-muted-foreground">
-                      {member.email}
-                    </p>
-                  ) : null}
                   <div className="mt-2">
                     <MemberRoleBadge role={member.role} />
                   </div>
+                  <div className="mt-3">
+                    <MemberInvitationControls
+                      groupId={groupId}
+                      member={{
+                        publicId: member.publicId,
+                        firstName: member.firstName,
+                        lastName: member.lastName,
+                        isActive: member.isActive,
+                        isConnected: Boolean(member.userId),
+                        connectedProfile: member.connectedProfile,
+                        pendingInvitations: member.pendingInvitations,
+                      }}
+                    />
+                  </div>
                 </div>
-                <MemberActionsMenu groupId={groupId} member={member} />
+                <MemberActionsMenu
+                  groupId={groupId}
+                  member={{
+                    publicId: member.publicId,
+                    firstName: member.firstName,
+                    lastName: member.lastName,
+                    role: member.role,
+                    isActive: member.isActive,
+                    canDelete: !member.userId && !member.hasJournalRecords,
+                  }}
+                />
               </article>
             ))}
           </div>

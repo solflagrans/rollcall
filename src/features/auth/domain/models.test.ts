@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getAuthenticatedHome,
   getMembershipHome,
   isManagerialRole,
   type UserMembership,
@@ -24,6 +25,15 @@ describe("membership access", () => {
     expect(getMembershipHome(membership("deputy"))).toBe("/groups/group-public");
     expect(getMembershipHome(membership("student"))).toBe(
       "/groups/group-public/student/member-public/attendance",
+    );
+  });
+
+  it("opens the group picker unless exactly one group is available", () => {
+    const onlyMembership = membership("headman");
+    expect(getAuthenticatedHome([])).toBe("/groups");
+    expect(getAuthenticatedHome([onlyMembership])).toBe("/groups/group-public");
+    expect(getAuthenticatedHome([onlyMembership, membership("student")])).toBe(
+      "/groups",
     );
   });
 });

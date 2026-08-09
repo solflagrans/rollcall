@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import {
   isManagerialRole,
-  type AuthUserProfile,
+  type AuthUserProfileInput,
 } from "@/features/auth/domain/models";
 import { auth } from "@/features/auth/server/neon-auth";
 import { AuthRepository } from "@/features/auth/server/repository";
@@ -46,7 +46,7 @@ export async function requireAuthUser() {
   return user;
 }
 
-function fallbackProfile(user: { id: string; name: string }): AuthUserProfile | undefined {
+function fallbackProfile(user: { id: string; name: string }): AuthUserProfileInput | undefined {
   const parts = user.name.trim().split(/\s+/u);
   const firstName = parts.shift();
   const lastName = parts.join(" ");
@@ -57,7 +57,10 @@ function fallbackProfile(user: { id: string; name: string }): AuthUserProfile | 
 
 export const getCurrentAuthProfile = cache(async () => {
   const user = await requireAuthUser();
-  return (await repository.getProfile(user.id)) ?? fallbackProfile(user);
+  const saved = await repository.getProfile(user.id);
+  if (saved) return saved;
+  const fallback = fallbackProfile(user);
+  return fallback ? repository.saveProfileAndSyncHeadmanNames(fallback) : undefined;
 });
 
 export async function requireAuthProfile() {
@@ -98,7 +101,7 @@ export async function requireOwnStudentMembership(
   return context;
 }
 
-export async function saveAuthProfile(profile: AuthUserProfile) {
+export async function saveAuthProfile(profile: AuthUserProfileInput) {
   return repository.saveProfileAndSyncHeadmanNames(profile);
 }
 

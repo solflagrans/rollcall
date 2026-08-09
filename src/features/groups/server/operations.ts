@@ -62,8 +62,9 @@ async function loadCachedGroupPeriodContext(
 export async function createGroup(input: CreateGroupInput) {
   const [user, profile] = await Promise.all([requireAuthUser(), requireAuthProfile()]);
   return getService().createGroup(input, {
-    ...profile,
-    email: user.email.toLowerCase(),
+    userId: user.id,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
   });
 }
 

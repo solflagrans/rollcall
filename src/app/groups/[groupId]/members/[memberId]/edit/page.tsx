@@ -41,7 +41,6 @@ export default async function EditMemberPage({
           defaultValues={{
             lastName: member.lastName,
             firstName: member.firstName,
-            email: member.email ?? "",
             role: member.role,
           }}
         />

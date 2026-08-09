@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,11 @@ type OverallSortField = "name" | "percentage" | AttendanceStatus;
 export function IndividualAttendanceSummary({
   lessons,
   members,
+  memberDetailsHrefs,
 }: {
   lessons: IndividualSummaryLessonSource[];
   members: IndividualSummaryMemberSource[];
+  memberDetailsHrefs?: Record<string, string>;
 }) {
   const [disciplineId, setDisciplineId] = useState("all");
   const [view, setView] = useState<SummaryView>("overall");
@@ -149,6 +152,7 @@ export function IndividualAttendanceSummary({
           rows={rows}
           sort={overallSort}
           onSort={sortOverallBy}
+          memberDetailsHrefs={memberDetailsHrefs}
         />
       ) : (
         <DisciplineSummaryTable
@@ -159,6 +163,7 @@ export function IndividualAttendanceSummary({
             setDisciplineSort((current) => nextSort(current, "name"))
           }
           onSortDiscipline={sortByDiscipline}
+          memberDetailsHrefs={memberDetailsHrefs}
         />
       )}
     </section>
@@ -169,10 +174,12 @@ function OverallSummaryTable({
   rows,
   sort,
   onSort,
+  memberDetailsHrefs,
 }: {
   rows: IndividualAttendanceRow[];
   sort: IndividualAttendanceSort;
   onSort: (field: OverallSortField) => void;
+  memberDetailsHrefs?: Record<string, string>;
 }) {
   return (
     <SummaryTableFrame label="Общая сводная посещаемости">
@@ -209,7 +216,10 @@ function OverallSummaryTable({
         <tbody>
           {rows.map((row) => (
             <tr key={row.member.publicId}>
-              <MemberCell row={row} />
+              <MemberCell
+                row={row}
+                detailsHref={memberDetailsHrefs?.[row.member.publicId]}
+              />
               <td className={metricCellClassName}>
                 {row.summary.percentage === null ? (
                   <span className="text-muted-foreground">Нет данных</span>
@@ -249,12 +259,14 @@ function DisciplineSummaryTable({
   sort,
   onSortName,
   onSortDiscipline,
+  memberDetailsHrefs,
 }: {
   rows: IndividualAttendanceRow[];
   disciplines: IndividualSummaryLessonSource["discipline"][];
   sort: IndividualAttendanceSort;
   onSortName: () => void;
   onSortDiscipline: (disciplineId: string) => void;
+  memberDetailsHrefs?: Record<string, string>;
 }) {
   return (
     <SummaryTableFrame label="Сводная посещаемости по дисциплинам">
@@ -286,7 +298,10 @@ function DisciplineSummaryTable({
         <tbody>
           {rows.map((row) => (
             <tr key={row.member.publicId}>
-              <MemberCell row={row} />
+              <MemberCell
+                row={row}
+                detailsHref={memberDetailsHrefs?.[row.member.publicId]}
+              />
               {disciplines.map((discipline) => {
                 const totals = row.byDiscipline.find(
                   (candidate) =>
@@ -329,7 +344,7 @@ function SummaryTableFrame({
 }) {
   return (
     <div
-      className="w-fit max-w-full overflow-x-auto rounded-md border bg-card"
+      className="mx-auto w-fit max-w-full overflow-x-auto rounded-md border bg-card"
       tabIndex={0}
       aria-label={`${label}. Таблица прокручивается по горизонтали.`}
     >
@@ -338,19 +353,37 @@ function SummaryTableFrame({
   );
 }
 
-function MemberCell({ row }: { row: IndividualAttendanceRow }) {
+function MemberCell({
+  row,
+  detailsHref,
+}: {
+  row: IndividualAttendanceRow;
+  detailsHref?: string;
+}) {
   const fullName = formatMemberName(row.member);
+  const name = (
+    <span
+      className="line-clamp-2 w-max max-w-56 whitespace-normal leading-snug"
+      title={fullName}
+    >
+      {fullName}
+    </span>
+  );
   return (
     <th
       scope="row"
       className="sticky left-0 z-10 w-px border-r border-b bg-card px-3 py-3 text-left align-middle font-medium"
     >
-      <span
-        className="line-clamp-2 w-max max-w-56 whitespace-normal leading-snug"
-        title={fullName}
-      >
-        {fullName}
-      </span>
+      {detailsHref ? (
+        <Link
+          href={detailsHref}
+          className="block rounded-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          {name}
+        </Link>
+      ) : (
+        name
+      )}
       {!row.member.isActive ? (
         <span className="mt-1 block text-xs font-normal text-muted-foreground">
           Неактивен

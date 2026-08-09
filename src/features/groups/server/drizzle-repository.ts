@@ -81,7 +81,6 @@ export class DrizzleRollcallRepository implements RollcallRepository {
       groupId,
       firstName: creator.firstName,
       lastName: creator.lastName,
-      email: creator.email,
       role: "headman",
       isActive: true,
       userId: creator.userId,

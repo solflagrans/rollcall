@@ -9,6 +9,7 @@ import {
   formatMemberName,
   memberRoleLabels,
 } from "@/features/members/presentation/member-copy";
+import { cn } from "@/lib/utils";
 
 type MemberOption = {
   publicId: string;
@@ -44,14 +45,19 @@ export function DevelopmentViewSwitcher({
       aria-label="Временное переключение вида приложения"
       className="rounded-md border bg-card p-4"
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="font-heading text-sm font-semibold">Режим разработки</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Временная имитация будущего входа в приложение.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:w-[34rem]">
+        <div
+          className={cn(
+            "grid w-full gap-4 sm:w-auto",
+            studentMode ? "sm:grid-cols-2 lg:w-[34rem]" : "sm:w-64",
+          )}
+        >
           <label className="block text-sm font-medium">
             Вид приложения
             <NativeSelect

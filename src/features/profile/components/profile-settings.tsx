@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import { Copy, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 
@@ -182,11 +182,37 @@ export function ProfileSettings({
   email: string;
 }) {
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [rollcallIdCopied, setRollcallIdCopied] = useState(false);
 
   return (
     <div className="space-y-6">
       <section className="rounded-md border bg-card p-5 sm:p-8">
         <PersonalDataForm profile={profile} />
+      </section>
+
+      <section className="rounded-md border bg-card p-5 sm:p-8">
+        <div>
+          <h2 className="font-heading text-xl font-semibold">Rollcall ID</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Постоянный публичный идентификатор для персональных приглашений. Он не раскрывает внутренний ID аккаунта.
+          </p>
+        </div>
+        <div className="mt-5 flex flex-col gap-3 rounded-sm border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+          <code className="break-all text-sm">{profile.rollcallId}</code>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await navigator.clipboard.writeText(profile.rollcallId);
+              setRollcallIdCopied(true);
+              window.setTimeout(() => setRollcallIdCopied(false), 1600);
+            }}
+          >
+            <Copy aria-hidden="true" />
+            {rollcallIdCopied ? "Скопировано" : "Скопировать"}
+          </Button>
+        </div>
       </section>
 
       <section className="rounded-md border bg-card p-5 sm:p-8">

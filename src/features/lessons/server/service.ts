@@ -1,5 +1,4 @@
 import { entityReferenceSchema } from "@/features/groups/schemas";
-import { getPeriodStatus } from "@/features/groups/domain/periods";
 import {
   lessonAttendanceUpdateSchema,
   lessonFormSchema,
@@ -195,14 +194,12 @@ export class LessonsService {
     periodReference: string,
     lessonReference: string,
     input: UpdateLessonAttendanceInput,
-    today: string,
   ) {
     const values = lessonAttendanceUpdateSchema.parse(input);
     const { group, period } = await this.requireGroupPeriod(
       groupReference,
       periodReference,
     );
-    this.requireEditablePeriod(period, today);
     const reference = entityReferenceSchema.parse(lessonReference);
     const lessonData = await this.repository.findLessonWithAttendance(
       period.id,
@@ -234,14 +231,12 @@ export class LessonsService {
     periodReference: string,
     lessonReference: string,
     input: UpdateLessonInput,
-    today: string,
   ) {
     const values = lessonUpdateSchema.parse(input);
     const { group, period } = await this.requireGroupPeriod(
       groupReference,
       periodReference,
     );
-    this.requireEditablePeriod(period, today);
     const reference = entityReferenceSchema.parse(lessonReference);
     const [lessonRow, disciplines] = await Promise.all([
       this.repository.findLesson(period.id, reference),
@@ -288,13 +283,11 @@ export class LessonsService {
     groupReference: string,
     periodReference: string,
     lessonReference: string,
-    today: string,
   ) {
     const { group, period } = await this.requireGroupPeriod(
       groupReference,
       periodReference,
     );
-    this.requireEditablePeriod(period, today);
     const reference = entityReferenceSchema.parse(lessonReference);
     const lessonRow = await this.repository.findLesson(period.id, reference);
     if (!lessonRow) throw new LessonsServiceError("lesson_not_found");
@@ -317,12 +310,4 @@ export class LessonsService {
     return { group: context.group, period: context.period };
   }
 
-  private requireEditablePeriod(
-    period: { startsOn: string; endsOn: string },
-    today: string,
-  ) {
-    if (getPeriodStatus(period.startsOn, period.endsOn, today) === "completed") {
-      throw new LessonsServiceError("period_completed");
-    }
-  }
 }

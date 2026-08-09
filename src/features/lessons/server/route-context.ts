@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireManagerRouteAccess } from "@/features/auth/server/route-context";
 import { getPeriodStatus } from "@/features/groups/domain/periods";
 import { redirectIfNonCanonical } from "@/features/groups/server/route-context";
+import { getAcademicPeriods } from "@/features/groups/server/operations";
 import { getMemberAttendancePeriodSelection } from "@/features/lessons/domain/member-attendance";
 import {
   getCompletedMemberAttendance,
@@ -12,7 +13,10 @@ import {
   getLessonCreationContext,
   getMemberAttendancePeriodIds,
 } from "@/features/lessons/server/operations";
-import { requireStudentMemberRouteContext } from "@/features/members/server/route-context";
+import {
+  requireMemberRouteContext,
+  requireStudentMemberRouteContext,
+} from "@/features/members/server/route-context";
 import { getUserToday } from "@/features/preferences/server/user-time-zone";
 
 type StudentAttendanceSection = "attendance" | "statistics";
@@ -51,6 +55,73 @@ export async function requireStudentAttendanceRouteContext({
     : undefined;
   const selectedPeriod = requestedPeriod ?? defaultPeriod;
   const sectionPath = `/groups/${group.publicId}/student/${member.publicId}/${section}`;
+
+  if (periodReference && !requestedPeriod) redirect(sectionPath);
+
+  const canonicalPeriodQuery = requestedPeriod
+    ? `?period=${encodeURIComponent(requestedPeriod.publicId)}`
+    : "";
+  redirectIfNonCanonical(
+    [
+      { received: groupReference, canonical: group.publicId },
+      { received: memberReference, canonical: member.publicId },
+      ...(periodReference && requestedPeriod
+        ? [{ received: periodReference, canonical: requestedPeriod.publicId }]
+        : []),
+    ],
+    `${sectionPath}${canonicalPeriodQuery}`,
+  );
+
+  const attendance = selectedPeriod
+    ? await getCompletedMemberAttendance(selectedPeriod.id, member.id)
+    : [];
+
+  return {
+    group,
+    member,
+    availablePeriods,
+    selectedPeriod,
+    selectedPeriodStatus: selectedPeriod
+      ? getPeriodStatus(selectedPeriod.startsOn, selectedPeriod.endsOn, today)
+      : undefined,
+    attendance,
+    sectionPath,
+  };
+}
+
+export async function requireManagerMemberAttendanceRouteContext({
+  groupReference,
+  memberReference,
+  periodReference,
+}: {
+  groupReference: string;
+  memberReference: string;
+  periodReference?: string;
+}) {
+  const { group, member } = await requireMemberRouteContext(
+    groupReference,
+    memberReference,
+  );
+  const periods = await getAcademicPeriods(group.id);
+  const [today, attendancePeriodIds] = await Promise.all([
+    getUserToday(),
+    getMemberAttendancePeriodIds(member.id),
+  ]);
+  const { availablePeriods, defaultPeriod } =
+    getMemberAttendancePeriodSelection(
+      periods,
+      new Set(attendancePeriodIds),
+      member.isActive,
+      today,
+    );
+  const requestedPeriod = periodReference
+    ? availablePeriods.find(
+        (period) =>
+          period.id === periodReference || period.publicId === periodReference,
+      )
+    : undefined;
+  const selectedPeriod = requestedPeriod ?? defaultPeriod;
+  const sectionPath = `/groups/${group.publicId}/summary/${member.publicId}`;
 
   if (periodReference && !requestedPeriod) redirect(sectionPath);
 

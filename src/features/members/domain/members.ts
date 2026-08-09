@@ -4,7 +4,7 @@ export const editableGroupMemberRoles = ["student", "deputy"] as const;
 export type GroupMemberRole = (typeof groupMemberRoles)[number];
 export type EditableGroupMemberRole = (typeof editableGroupMemberRoles)[number];
 export type MemberListStatus = "active" | "inactive";
-export type MemberSortKey = "lastName" | "email" | "role";
+export type MemberSortKey = "lastName" | "role";
 export type SortDirection = "asc" | "desc";
 
 export interface GroupMember {
@@ -13,12 +13,30 @@ export interface GroupMember {
   groupId: string;
   firstName: string;
   lastName: string;
-  email: string | null;
   role: GroupMemberRole;
   isActive: boolean;
   userId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface GroupMemberListItem extends GroupMember {
+  hasJournalRecords: boolean;
+  connectedProfile: {
+    firstName: string;
+    lastName: string;
+    rollcallId: string;
+  } | null;
+  pendingInvitations: {
+    publicId: string;
+    method: "rollcall_id" | "link";
+    expiresAt: Date;
+    targetProfile: {
+      firstName: string;
+      lastName: string;
+      rollcallId: string;
+    } | null;
+  }[];
 }
 
 export function isHeadman<T extends Pick<GroupMember, "role">>(

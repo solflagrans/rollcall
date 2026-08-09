@@ -32,19 +32,12 @@ function memberOperationError(error: unknown): FormActionResult {
       formError: "Проверьте заполненные поля.",
       fieldErrors: getZodFieldErrors(
         error,
-        new Set(["lastName", "firstName", "email", "role"]),
+        new Set(["lastName", "firstName", "role"]),
       ),
     };
   }
 
   if (error instanceof MembersServiceError) {
-    if (error.code === "duplicate_email") {
-      return {
-        status: "error",
-        formError: "Участник с таким email уже есть в группе.",
-        fieldErrors: { email: "Этот email уже используется в группе." },
-      };
-    }
     if (error.code === "headman_required") {
       return { status: "error", formError: "Сначала добавьте старосту группы." };
     }
@@ -55,6 +48,12 @@ function memberOperationError(error: unknown): FormActionResult {
       return {
         status: "error",
         formError: "Участника нельзя удалить, потому что с ним связаны другие данные.",
+      };
+    }
+    if (error.code === "deletion_connected") {
+      return {
+        status: "error",
+        formError: "Участника с подключённым аккаунтом нельзя удалить.",
       };
     }
     if (error.code === "member_not_found" || error.code === "group_not_found") {

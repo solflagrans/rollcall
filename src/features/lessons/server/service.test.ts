@@ -55,7 +55,6 @@ class MemoryLessonsRepository implements LessonsRepository {
       groupId,
       firstName: "Анна",
       lastName: "Алексеева",
-      email: null,
       role: "headman",
       isActive: true,
       userId: null,
@@ -65,7 +64,6 @@ class MemoryLessonsRepository implements LessonsRepository {
       groupId,
       firstName: "Борис",
       lastName: "Белов",
-      email: null,
       role: "deputy",
       isActive: true,
       userId: null,
@@ -75,7 +73,6 @@ class MemoryLessonsRepository implements LessonsRepository {
       groupId,
       firstName: "Вера",
       lastName: "Волкова",
-      email: null,
       role: "student",
       isActive: false,
       userId: null,
@@ -429,7 +426,6 @@ describe("LessonsService", () => {
           },
         ],
       },
-      "2026-08-08",
     );
     expect(partiallyUpdated.attendance.map(({ status }) => status)).toEqual([
       null,
@@ -449,7 +445,6 @@ describe("LessonsService", () => {
           },
         ],
       },
-      "2026-08-08",
     );
     expect(isLessonCompleted(updated.attendance)).toBe(true);
     const reset = await service.updateLessonAttendance(
@@ -465,7 +460,6 @@ describe("LessonsService", () => {
           },
         ],
       },
-      "2026-08-08",
     );
     expect(reset.attendance.map(({ status }) => status)).toEqual([
       null,
@@ -618,7 +612,6 @@ describe("LessonsService", () => {
         disciplineId: archivedDiscipline.publicId,
         lessonType: "seminar",
       },
-      "2026-08-08",
     );
 
     expect(updated.lesson).toMatchObject({
@@ -638,7 +631,6 @@ describe("LessonsService", () => {
           disciplineId: archivedDiscipline.publicId,
           lessonType: "seminar",
         },
-        "2026-08-08",
       ),
     ).rejects.toMatchObject({ code: "date_outside_period" });
     await expect(
@@ -651,12 +643,11 @@ describe("LessonsService", () => {
           disciplineId: "notassigned0",
           lessonType: "seminar",
         },
-        "2026-08-08",
       ),
     ).rejects.toMatchObject({ code: "discipline_not_assigned" });
   });
 
-  it("deletes a lesson together with attendance and blocks mutations after the period", async () => {
+  it("allows corrections and deletion after the period has ended", async () => {
     const created = await service.createLesson(groupId, periodId, {
       lessonDate: "2026-09-15",
       disciplineId,
@@ -665,43 +656,30 @@ describe("LessonsService", () => {
     });
     repository.period.endsOn = "2026-08-07";
 
-    await expect(
-      service.updateLessonAttendance(
-        groupId,
-        periodId,
-        created.lesson.publicId,
-        { attendance: [] },
-        "2026-08-08",
-      ),
-    ).rejects.toMatchObject({ code: "period_completed" });
-    await expect(
-      service.updateLesson(
-        groupId,
-        periodId,
-        created.lesson.publicId,
-        {
-          lessonDate: "2026-08-07",
-          disciplineId,
-          lessonType: "practice",
-        },
-        "2026-08-08",
-      ),
-    ).rejects.toMatchObject({ code: "period_completed" });
-    await expect(
-      service.deleteLesson(
-        groupId,
-        periodId,
-        created.lesson.publicId,
-        "2026-08-08",
-      ),
-    ).rejects.toMatchObject({ code: "period_completed" });
+    const attendance = await service.updateLessonAttendance(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      { attendance: [] },
+    );
+    expect(attendance.lesson.publicId).toBe(created.lesson.publicId);
 
-    repository.period.endsOn = "2026-12-31";
+    const updated = await service.updateLesson(
+      groupId,
+      periodId,
+      created.lesson.publicId,
+      {
+        lessonDate: "2026-08-07",
+        disciplineId,
+        lessonType: "practice",
+      },
+    );
+    expect(updated.lesson.lessonType).toBe("practice");
+
     await service.deleteLesson(
       groupId,
       periodId,
       created.lesson.publicId,
-      "2026-08-08",
     );
     expect(repository.created).toHaveLength(0);
   });

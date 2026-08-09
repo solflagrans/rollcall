@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { GroupMember } from "@/features/members/domain/members";
+import type { GroupMemberListItem } from "@/features/members/domain/members";
 import { MembersServiceError } from "@/features/members/server/errors";
 import type {
   MemberWriteValues,
@@ -12,9 +12,10 @@ import type { NormalizedMemberInput } from "@/features/members/schemas";
 const groupId = "00000000-0000-4000-8000-000000000001";
 
 class MemoryMembersRepository implements MembersRepository {
-  members: GroupMember[] = [];
+  members: GroupMemberListItem[] = [];
   blockedIds = new Set<string>();
   deleteError?: unknown;
+  connectOnDelete = false;
   private sequence = 1;
 
   async listMembers(targetGroupId: string) {
@@ -31,11 +32,14 @@ class MemoryMembersRepository implements MembersRepository {
 
   async insertMember(targetGroupId: string, values: MemberWriteValues) {
     const id = `00000000-0000-4000-8000-${String(this.sequence).padStart(12, "0")}`;
-    const member: GroupMember = {
+    const member: GroupMemberListItem = {
       id,
       publicId: `m${String(this.sequence++).padStart(11, "0")}`,
       groupId: targetGroupId,
       ...values,
+      hasJournalRecords: false,
+      connectedProfile: null,
+      pendingInvitations: [],
       createdAt: new Date("2026-08-08T00:00:00Z"),
       updatedAt: new Date("2026-08-08T00:00:00Z"),
     };
@@ -69,6 +73,10 @@ class MemoryMembersRepository implements MembersRepository {
     if (this.deleteError) throw this.deleteError;
     const member = await this.findMember(targetGroupId, memberId);
     if (!member) return undefined;
+    if (this.connectOnDelete) {
+      member.userId = "concurrent-auth-user";
+      return undefined;
+    }
     this.members = this.members.filter((candidate) => candidate.id !== member.id);
     return member;
   }
@@ -87,7 +95,6 @@ describe("MembersService", () => {
     repository.insertMember(groupId, {
       lastName: "Петров",
       firstName: "Пётр",
-      email: "headman@example.com",
       role: "headman",
       isActive: true,
       userId: "auth-user-1",
@@ -98,7 +105,6 @@ describe("MembersService", () => {
       service.createMember(groupId, {
         lastName: "Иванов",
         firstName: "Иван",
-        email: "",
         role: "student",
       }),
     ).rejects.toMatchObject({ code: "headman_required" });
@@ -106,7 +112,6 @@ describe("MembersService", () => {
     const headman = await insertHeadman();
     expect(headman).toMatchObject({
       lastName: "Петров",
-      email: "headman@example.com",
       role: "headman",
       isActive: true,
       userId: "auth-user-1",
@@ -119,54 +124,17 @@ describe("MembersService", () => {
     });
   });
 
-  it("normalizes and enforces unique non-empty email inside the group", async () => {
-    await insertHeadman();
-    await service.createMember(groupId, {
-      lastName: "Иванов",
-      firstName: "Иван",
-      email: " USER@EXAMPLE.COM ",
-      role: "student",
-    });
-    await expect(
-      service.createMember(groupId, {
-        lastName: "Сидорова",
-        firstName: "Анна",
-        email: "user@example.com",
-        role: "deputy",
-      }),
-    ).rejects.toMatchObject({ code: "duplicate_email" });
-
-    await expect(
-      service.createMember(groupId, {
-        lastName: "Безпочты",
-        firstName: "Один",
-        email: "",
-        role: "student",
-      }),
-    ).resolves.toMatchObject({ email: null });
-    await expect(
-      service.createMember(groupId, {
-        lastName: "Безпочты",
-        firstName: "Два",
-        email: "",
-        role: "student",
-      }),
-    ).resolves.toMatchObject({ email: null });
-  });
-
   it("edits roles, deactivates without deletion, restores, and deletes mistakes", async () => {
     await insertHeadman();
     const student = await service.createMember(groupId, {
       lastName: "Иванов",
       firstName: "Иван",
-      email: "ivan@example.com",
       role: "student",
     });
 
     const deputy = await service.updateMember(groupId, student.publicId, {
       lastName: "Иванов",
       firstName: "Иван",
-      email: "ivan@example.com",
       role: "deputy",
     });
     expect(deputy.role).toBe("deputy");
@@ -192,7 +160,6 @@ describe("MembersService", () => {
     const student = await service.createMember(groupId, {
       lastName: "Иванов",
       firstName: "Иван",
-      email: "",
       role: "student",
     });
     repository.deleteError = Object.assign(new Error("foreign key violation"), {
@@ -202,5 +169,35 @@ describe("MembersService", () => {
     await expect(
       service.deleteMember(groupId, student.publicId),
     ).rejects.toMatchObject({ code: "deletion_blocked" });
+  });
+
+  it("does not delete a member with a connected account", async () => {
+    await insertHeadman();
+    const student = await service.createMember(groupId, {
+      lastName: "Иванов",
+      firstName: "Иван",
+      role: "student",
+    });
+    student.userId = "auth-user-2";
+
+    await expect(
+      service.deleteMember(groupId, student.publicId),
+    ).rejects.toMatchObject({ code: "deletion_connected" });
+    expect(await service.getMember(groupId, student.publicId)).toBe(student);
+  });
+
+  it("does not delete a member connected concurrently", async () => {
+    await insertHeadman();
+    const student = await service.createMember(groupId, {
+      lastName: "Иванов",
+      firstName: "Иван",
+      role: "student",
+    });
+    repository.connectOnDelete = true;
+
+    await expect(
+      service.deleteMember(groupId, student.publicId),
+    ).rejects.toMatchObject({ code: "deletion_connected" });
+    expect(await service.getMember(groupId, student.publicId)).toBe(student);
   });
 });

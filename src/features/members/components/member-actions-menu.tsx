@@ -24,7 +24,10 @@ export function MemberActionsMenu({
   compact = false,
 }: {
   groupId: string;
-  member: GroupMember;
+  member: Pick<
+    GroupMember,
+    "publicId" | "firstName" | "lastName" | "role" | "isActive"
+  > & { canDelete: boolean };
   compact?: boolean;
 }) {
   const router = useRouter();
@@ -98,7 +101,7 @@ export function MemberActionsMenu({
             </button>
           )}
 
-          <button
+          {member.canDelete ? <button
             type="button"
             role="menuitem"
             className={cn(contextMenuItemClassName, "text-destructive hover:text-destructive")}
@@ -118,7 +121,7 @@ export function MemberActionsMenu({
           >
             <Trash2 aria-hidden="true" className="size-4" />
             Удалить запись
-          </button>
+          </button> : null}
 
           {error ? (
             <p role="alert" className="max-w-64 px-3 py-2 text-xs text-destructive">

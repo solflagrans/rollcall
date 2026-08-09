@@ -49,11 +49,12 @@ function useAuthAction(action: typeof signInAction) {
   return { state, formAction, pending };
 }
 
-export function SignInForm() {
+export function SignInForm({ returnTo }: { returnTo?: string }) {
   const { state, formAction, pending } = useAuthAction(signInAction);
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   return (
     <form action={formAction} className="space-y-5">
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <FormStatus state={state} />
       <FormField id="email" label="Email" error={errors?.email}>
         <Input id="email" name="email" type="email" autoComplete="email" required aria-invalid={Boolean(errors?.email)} />
@@ -66,17 +67,18 @@ export function SignInForm() {
       </Button>
       <div className="flex items-center justify-between gap-4 text-sm">
         <Link className="text-primary hover:underline" href="/auth/forgot-password">Забыли пароль?</Link>
-        <Link className="text-primary hover:underline" href="/auth/sign-up">Создать аккаунт</Link>
+        <Link className="text-primary hover:underline" href={returnTo ? `/auth/sign-up?returnTo=${encodeURIComponent(returnTo)}` : "/auth/sign-up"}>Создать аккаунт</Link>
       </div>
     </form>
   );
 }
 
-export function SignUpForm() {
+export function SignUpForm({ returnTo }: { returnTo?: string }) {
   const { state, formAction, pending } = useAuthAction(signUpAction);
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   return (
     <form action={formAction} className="space-y-5">
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <FormStatus state={state} />
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField id="firstName" label="Имя" error={errors?.firstName}>
@@ -96,13 +98,13 @@ export function SignUpForm() {
         {pending ? "Создаём аккаунт…" : "Зарегистрироваться"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        Уже есть аккаунт? <Link className="text-primary hover:underline" href="/auth/sign-in">Войти</Link>
+        Уже есть аккаунт? <Link className="text-primary hover:underline" href={returnTo ? `/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}` : "/auth/sign-in"}>Войти</Link>
       </p>
     </form>
   );
 }
 
-export function VerifyEmailForm({ email }: { email: string }) {
+export function VerifyEmailForm({ email, returnTo }: { email: string; returnTo?: string }) {
   const { state, formAction, pending } = useAuthAction(verifyEmailAction);
   const [resendState, resendAction, resendPending] = useActionState(
     resendVerificationCodeAction,
@@ -113,6 +115,7 @@ export function VerifyEmailForm({ email }: { email: string }) {
     <div className="space-y-5">
       <form action={formAction} className="space-y-5">
         <input type="hidden" name="email" value={email} />
+        {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
         <FormStatus state={state} />
         <FormField id="code" label="Код подтверждения" hint={`Мы отправили код на ${email}.`} error={errors?.code}>
           <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" required aria-invalid={Boolean(errors?.code)} />

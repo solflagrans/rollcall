@@ -91,6 +91,12 @@ export default async function GroupSummaryPage({
 
           <IndividualAttendanceSummary
             key={selectedPeriod.publicId}
+            memberDetailsHrefs={Object.fromEntries(
+              journal.members.map((member) => [
+                member.publicId,
+                `/groups/${group.publicId}/summary/${member.publicId}?period=${encodeURIComponent(selectedPeriod.publicId)}`,
+              ]),
+            )}
             lessons={journal.lessons.map((lesson) => ({
               publicId: lesson.publicId,
               discipline: {

@@ -4,6 +4,7 @@ import { and, asc, eq, or } from "drizzle-orm";
 
 import type {
   AuthUserProfile,
+  AuthUserProfileInput,
   UserMembership,
 } from "@/features/auth/domain/models";
 import { entityIdSchema } from "@/features/groups/schemas";
@@ -23,6 +24,7 @@ export class AuthRepository {
       this.database
         .select({
           userId: authUserProfiles.userId,
+          rollcallId: authUserProfiles.rollcallId,
           firstName: authUserProfiles.firstName,
           lastName: authUserProfiles.lastName,
         })
@@ -34,7 +36,7 @@ export class AuthRepository {
   }
 
   async saveProfileAndSyncHeadmanNames(
-    profile: AuthUserProfile,
+    profile: AuthUserProfileInput,
   ): Promise<AuthUserProfile> {
     const profileUpsert = this.database
       .insert(authUserProfiles)
@@ -49,6 +51,7 @@ export class AuthRepository {
       })
       .returning({
         userId: authUserProfiles.userId,
+        rollcallId: authUserProfiles.rollcallId,
         firstName: authUserProfiles.firstName,
         lastName: authUserProfiles.lastName,
       });

@@ -5,7 +5,7 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -76,6 +76,7 @@ export function PeriodJournal({
   const [incompleteOpen, setIncompleteOpen] = useState(false);
   const [openComment, setOpenComment] = useState<OpenComment>();
   const matrixScrollRef = useRef<HTMLDivElement>(null);
+  const matrixHeaderRef = useRef<HTMLTableSectionElement>(null);
   const lessonDisciplineIds = useMemo(
     () => new Set(lessons.map(({ discipline }) => discipline.publicId)),
     [lessons],
@@ -119,6 +120,39 @@ export function PeriodJournal({
       matrix.scrollLeft = matrix.scrollWidth - matrix.clientWidth;
     }
   }, [disciplineId, visibleLessons.length]);
+
+  useEffect(() => {
+    const matrix = matrixScrollRef.current;
+    const header = matrixHeaderRef.current;
+    if (!matrix || !header) return;
+
+    let frame = 0;
+    const updateHeaderPosition = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const matrixRect = matrix.getBoundingClientRect();
+        const headerHeight = header.getBoundingClientRect().height;
+        const viewportOffset = window.matchMedia("(min-width: 48rem)").matches
+          ? 0
+          : 64;
+        const offset = Math.min(
+          Math.max(viewportOffset - matrixRect.top, 0),
+          Math.max(matrixRect.height - headerHeight, 0),
+        );
+        header.style.transform = `translateY(${offset}px)`;
+      });
+    };
+
+    updateHeaderPosition();
+    window.addEventListener("scroll", updateHeaderPosition, { passive: true });
+    window.addEventListener("resize", updateHeaderPosition);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updateHeaderPosition);
+      window.removeEventListener("resize", updateHeaderPosition);
+      header.style.transform = "";
+    };
+  }, [members.length, visibleLessons.length]);
 
   return (
     <section className="space-y-5" aria-labelledby="journal-title">
@@ -190,7 +224,7 @@ export function PeriodJournal({
           aria-label="Матрица посещаемости. Прокручивается по горизонтали."
         >
           <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
-            <thead>
+            <thead ref={matrixHeaderRef} className="relative z-30 will-change-transform">
               <tr>
                 <th
                   scope="col"

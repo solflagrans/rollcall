@@ -1,5 +1,6 @@
 import type {
   GroupMember,
+  GroupMemberListItem,
   GroupMemberRole,
 } from "@/features/members/domain/members";
 import type { NormalizedMemberInput } from "@/features/members/schemas";
@@ -11,7 +12,7 @@ export interface MemberWriteValues extends Omit<NormalizedMemberInput, "role"> {
 }
 
 export interface MembersRepository {
-  listMembers(groupId: string): Promise<GroupMember[]>;
+  listMembers(groupId: string): Promise<GroupMemberListItem[]>;
   findMember(groupId: string, memberReference: string): Promise<GroupMember | undefined>;
   insertMember(groupId: string, values: MemberWriteValues): Promise<GroupMember>;
   updateMember(

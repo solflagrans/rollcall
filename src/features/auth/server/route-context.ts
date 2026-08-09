@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { getMembershipHome, isManagerialRole } from "@/features/auth/domain/models";
+import { normalizeReturnTo } from "@/features/auth/schemas";
 import {
   AuthorizationError,
   getCurrentAuthUser,
@@ -12,13 +13,13 @@ import {
   requireOwnStudentMembership,
 } from "@/features/auth/server/authorization";
 
-export async function redirectSignedInUser(): Promise<void> {
+export async function redirectSignedInUser(returnTo?: string): Promise<void> {
   const user = await getCurrentAuthUser();
   if (!user) return;
   if (!user.emailVerified) {
     redirect(`/auth/verify-email?email=${encodeURIComponent(user.email)}`);
   }
-  redirect("/");
+  redirect(normalizeReturnTo(returnTo) ?? "/");
 }
 
 export async function requireAppRouteContext() {

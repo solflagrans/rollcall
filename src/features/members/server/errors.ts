@@ -3,7 +3,7 @@ export type MembersServiceErrorCode =
   | "member_not_found"
   | "headman_required"
   | "headman_protected"
-  | "duplicate_email"
+  | "deletion_connected"
   | "deletion_blocked";
 
 export class MembersServiceError extends Error {

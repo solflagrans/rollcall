@@ -59,12 +59,6 @@ function actionError(error: unknown): FormActionResult {
         formError: "Состав группы или дисциплины изменились. Обновите страницу и повторите попытку.",
       };
     }
-    if (error.code === "period_completed") {
-      return {
-        status: "error",
-        formError: "Учебный период завершён. Занятие доступно только для просмотра.",
-      };
-    }
     if (
       error.code === "group_not_found" ||
       error.code === "period_not_found" ||

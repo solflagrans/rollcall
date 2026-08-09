@@ -46,12 +46,26 @@ const lessons = [
 
 describe("IndividualAttendanceSummary", () => {
   it("shows historical and no-data rows, recalculates the selected discipline", () => {
-    render(<IndividualAttendanceSummary lessons={lessons} members={members} />);
+    render(
+      <IndividualAttendanceSummary
+        lessons={lessons}
+        members={members}
+        memberDetailsHrefs={{
+          active: "/groups/group/summary/active?period=period",
+        }}
+      />,
+    );
 
     const initialRows = screen.getAllByRole("row");
     expect(within(initialRows[1]!).getByText("Алексеев Иван")).toBeInTheDocument();
     expect(within(initialRows[1]!).getByText("Неактивен")).toBeInTheDocument();
     expect(within(initialRows[2]!).getByText("Борисова Анна")).toBeInTheDocument();
+    expect(
+      within(initialRows[2]!).getByRole("link", { name: "Борисова Анна" }),
+    ).toHaveAttribute(
+      "href",
+      "/groups/group/summary/active?period=period",
+    );
     expect(within(initialRows[3]!).getByText("Нет данных")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Дисциплина"), {

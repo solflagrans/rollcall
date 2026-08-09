@@ -191,7 +191,11 @@ export function LessonForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(save)} noValidate className="min-w-0 space-y-8">
+    <form
+      onSubmit={handleSubmit(save)}
+      noValidate
+      className={cn("min-w-0 space-y-8", !readOnly && "pb-28")}
+    >
       <FormError message={errors.root?.message} />
 
       <section className="space-y-5" aria-labelledby="lesson-details-title">
@@ -476,17 +480,43 @@ export function LessonForm({
       </section>
 
       {!readOnly ? (
-        <Button
-          type="submit"
-          size="lg"
-          disabled={isSubmitting || submission.isLocked}
+        <div
+          className="pointer-events-none fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 md:right-4 md:left-64"
+          aria-label="Сохранение посещаемости"
         >
-          {isSubmitting || submission.isLocked
-            ? "Сохранение…"
-            : lessonId
-              ? "Сохранить посещаемость"
-              : "Сохранить занятие"}
-        </Button>
+          <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-4 rounded-md border bg-card/95 p-3 shadow-sm backdrop-blur sm:px-4">
+            <p className="min-w-0 text-sm text-muted-foreground" aria-live="polite">
+              <span className="font-medium text-foreground">
+                Отмечено {progress.marked} из {progress.total}
+              </span>
+              <span className="hidden sm:inline">
+                {progress.completed ? " · Занятие завершено" : " · Есть неотмеченные"}
+              </span>
+            </p>
+            <Button
+              type="submit"
+              size="lg"
+              className="shrink-0"
+              aria-label={
+                lessonId ? "Сохранить посещаемость" : "Сохранить занятие"
+              }
+              disabled={isSubmitting || submission.isLocked}
+            >
+              {isSubmitting || submission.isLocked
+                ? "Сохранение…"
+                : (
+                    <>
+                      <span className="sm:hidden">Сохранить</span>
+                      <span className="hidden sm:inline">
+                        {lessonId
+                          ? "Сохранить посещаемость"
+                          : "Сохранить занятие"}
+                      </span>
+                    </>
+                  )}
+            </Button>
+          </div>
+        </div>
       ) : null}
     </form>
   );

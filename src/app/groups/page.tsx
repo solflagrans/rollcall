@@ -4,11 +4,16 @@ import Link from "next/link";
 import { getMembershipHome } from "@/features/auth/domain/models";
 import { requireAppRouteContext } from "@/features/auth/server/route-context";
 import { memberRoleLabels } from "@/features/members/presentation/member-copy";
+import { IncomingInvitations } from "@/features/invitations/components/incoming-invitations";
+import { listIncomingInvitations } from "@/features/invitations/server/operations";
 
 export const dynamic = "force-dynamic";
 
 export default async function GroupsPage() {
-  const { memberships } = await requireAppRouteContext();
+  const [{ memberships }, invitations] = await Promise.all([
+    requireAppRouteContext(),
+    listIncomingInvitations(),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -19,6 +24,8 @@ export default async function GroupsPage() {
           Выберите группу, чтобы перейти к доступному разделу.
         </p>
       </header>
+
+      <IncomingInvitations invitations={invitations} />
 
       {memberships.length > 0 ? (
         <ul className="divide-y overflow-hidden rounded-md border bg-card" aria-label="Доступные группы">
