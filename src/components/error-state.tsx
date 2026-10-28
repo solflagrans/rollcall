@@ -16,8 +16,9 @@ export function ErrorState({
 }) {
   return (
     <div
+      data-surface="raised"
       className={cn(
-        "rounded-md border bg-card p-6 sm:p-8",
+        "rounded-md border bg-card p-6 shadow-xs sm:p-8",
         centered && "mx-auto max-w-lg text-center",
       )}
     >
@@ -27,7 +28,7 @@ export function ErrorState({
       />
       <h1 className="mt-4 font-heading text-xl font-semibold">{title}</h1>
       <p className="mt-2 text-muted-foreground">
-        Проверьте подключение к базе данных и повторите попытку.
+        Проверьте интернет-соединение и повторите попытку. Введённые данные не были отправлены повторно.
       </p>
       <Button type="button" className="mt-6" onClick={reset}>
         Повторить

@@ -118,4 +118,4 @@ export function ContextMenu({
 }
 
 export const contextMenuItemClassName =
-  "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-left text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50";
+  "flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 md:min-h-10";

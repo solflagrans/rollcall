@@ -30,7 +30,6 @@ const defaultProps = {
 
 describe("LessonForm statistics", () => {
   it("switches between progress and final statistics with local attendance changes", () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(
       <LessonForm
         {...defaultProps}
@@ -56,6 +55,9 @@ describe("LessonForm statistics", () => {
     });
     expect(within(statistics).getByText("Отмечено 1 из 2")).toBeInTheDocument();
     expect(within(statistics).queryByText("50%")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Сохранить посещаемость" }),
+    ).toBeDisabled();
 
     fireEvent.click(
       within(screen.getByRole("group", { name: "Статус: Петров Пётр" })).getByRole(
@@ -69,6 +71,9 @@ describe("LessonForm statistics", () => {
       within(statistics).getByText("Присутствовали 2 из 2 человек"),
     ).toBeInTheDocument();
     expect(within(statistics).queryByText(/Отмечено/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Сохранить посещаемость" }),
+    ).toBeEnabled();
 
     fireEvent.click(
       within(screen.getByRole("group", { name: "Статус: Петров Пётр" })).getByRole(
@@ -81,12 +86,20 @@ describe("LessonForm statistics", () => {
     expect(within(statistics).queryByText("100%")).not.toBeInTheDocument();
     expect(
       screen.getByLabelText("Сохранение посещаемости"),
-    ).toHaveTextContent("Отмечено 1 из 2");
+    ).toHaveTextContent("Все изменения сохранены");
+    expect(
+      screen.getByRole("button", { name: "Сохранить посещаемость" }),
+    ).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Сбросить отметки" }));
-    expect(confirm).toHaveBeenCalledOnce();
+    const confirmation = screen.getByRole("dialog", { name: "Сбросить отметки?" });
+    fireEvent.click(
+      within(confirmation).getByRole("button", { name: "Сбросить отметки" }),
+    );
     expect(within(statistics).getByText("Отмечено 0 из 2")).toBeInTheDocument();
-    confirm.mockRestore();
+    expect(
+      screen.getByRole("button", { name: "Сохранить посещаемость" }),
+    ).toBeEnabled();
   });
 
   it("shows saved final statistics in read-only mode", () => {

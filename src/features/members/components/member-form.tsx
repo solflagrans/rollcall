@@ -32,11 +32,13 @@ export function MemberForm({
   groupId,
   memberId,
   defaultValues,
+  returnTo,
 }: {
   mode: MemberFormMode;
   groupId: string;
   memberId?: string;
   defaultValues?: Partial<MemberFormValues>;
+  returnTo?: string;
 }) {
   const router = useRouter();
   const submission = useActionLock();
@@ -67,7 +69,12 @@ export function MemberForm({
 
     if (result.status === "success") {
       reset(values);
-      router.push(result.redirectTo);
+      if (mode === "edit" && returnTo) {
+        const separator = returnTo.includes("?") ? "&" : "?";
+        router.push(`${returnTo}${separator}notice=member-updated`);
+      } else {
+        router.push(result.redirectTo);
+      }
       return;
     }
 
@@ -90,7 +97,6 @@ export function MemberForm({
         <FormField id="lastName" label="Фамилия" error={errors.lastName?.message}>
           <Input
             id="lastName"
-            className="mt-1"
             autoComplete="family-name"
             autoFocus
             aria-invalid={Boolean(errors.lastName)}
@@ -101,7 +107,6 @@ export function MemberForm({
         <FormField id="firstName" label="Имя" error={errors.firstName?.message}>
           <Input
             id="firstName"
-            className="mt-1"
             autoComplete="given-name"
             aria-invalid={Boolean(errors.firstName)}
             aria-describedby={describedBy("firstName")}
@@ -113,7 +118,6 @@ export function MemberForm({
       <FormField id="role" label="Роль" error={errors.role?.message}>
           <NativeSelect
             id="role"
-            className="mt-1"
             aria-invalid={Boolean(errors.role)}
             aria-describedby={describedBy("role")}
             {...register("role")}

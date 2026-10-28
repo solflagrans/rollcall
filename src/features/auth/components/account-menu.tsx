@@ -11,7 +11,7 @@ import type { AuthUserProfile } from "@/features/auth/domain/models";
 import { cn } from "@/lib/utils";
 
 const menuItemClassName =
-  "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-left text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-left text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-10";
 
 export function AccountMenu({
   profile,

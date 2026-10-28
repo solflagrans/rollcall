@@ -186,11 +186,11 @@ export function ProfileSettings({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-md border bg-card p-5 sm:p-8">
+      <section data-surface="raised" className="rounded-md border bg-card p-5 shadow-xs sm:p-8">
         <PersonalDataForm profile={profile} />
       </section>
 
-      <section className="rounded-md border bg-card p-5 sm:p-8">
+      <section data-surface="raised" className="rounded-md border bg-card p-5 shadow-xs sm:p-8">
         <div>
           <h2 className="font-heading text-xl font-semibold">Rollcall ID</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -215,7 +215,7 @@ export function ProfileSettings({
         </div>
       </section>
 
-      <section className="rounded-md border bg-card p-5 sm:p-8">
+      <section data-surface="raised" className="rounded-md border bg-card p-5 shadow-xs sm:p-8">
         <div>
           <h2 className="font-heading text-xl font-semibold">Email</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export function ProfileSettings({
         </div>
       </section>
 
-      <section className="rounded-md border bg-card p-5 sm:p-8">
+      <section data-surface="raised" className="rounded-md border bg-card p-5 shadow-xs sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-heading text-xl font-semibold">Безопасность</h2>

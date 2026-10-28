@@ -1,5 +1,6 @@
 import { requireAppRouteContext } from "@/features/auth/server/route-context";
 import { AppShell } from "@/features/groups/components/app-shell";
+import { BackLink } from "@/features/groups/components/back-link";
 import { PageHeader } from "@/features/groups/components/page-header";
 import { ProfileSettings } from "@/features/profile/components/profile-settings";
 
@@ -14,7 +15,7 @@ export default async function ProfilePage() {
         <PageHeader
           eyebrow="Аккаунт"
           title="Профиль"
-          description="Личные данные и безопасность вашего аккаунта Rollcall."
+          actions={<BackLink href="/groups" label="К группам" />}
         />
         <ProfileSettings profile={context.profile} email={context.user.email} />
       </div>

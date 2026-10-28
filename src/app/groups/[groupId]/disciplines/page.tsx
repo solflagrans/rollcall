@@ -35,7 +35,7 @@ export default async function DisciplinesPage({
       <PageHeader
         eyebrow={`Группа ${group.name}`}
         title="Дисциплины"
-        description="Управляйте постоянным пулом дисциплин группы."
+        description="Создавайте дисциплины группы и подключайте их к учебным периодам."
         actions={
           disciplines.length > 0 ? (
             <NewDisciplineDialog groupId={group.publicId} />

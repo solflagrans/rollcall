@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { FormCard } from "@/features/groups/components/form-card";
+import { BackLink } from "@/features/groups/components/back-link";
 import { GroupForm } from "@/features/groups/components/group-form";
 import { PageHeader } from "@/features/groups/components/page-header";
 import {
@@ -43,7 +44,20 @@ export default async function EditGroupPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <PageHeader eyebrow="Настройки группы" title={`Изменить группу ${group.name}`} />
+      <PageHeader
+        eyebrow="Настройки группы"
+        title={`Изменить группу ${group.name}`}
+        actions={
+          <BackLink
+            href={
+              returnPeriod
+                ? `/groups/${group.publicId}/periods/${returnPeriod.publicId}`
+                : `/groups/${group.publicId}`
+            }
+            label="Назад в группу"
+          />
+        }
+      />
       <FormCard label="Форма редактирования группы">
         <GroupForm
           mode="edit"

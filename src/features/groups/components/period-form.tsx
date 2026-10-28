@@ -133,7 +133,6 @@ export function PeriodForm({
       >
         <Input
           id="number"
-          className="mt-1"
           type="number"
           inputMode="numeric"
           min={1}
@@ -149,7 +148,6 @@ export function PeriodForm({
         <FormField id="startsOn" label="Дата начала" error={errors.startsOn?.message}>
           <Input
             id="startsOn"
-            className="mt-1"
             type="date"
             aria-invalid={Boolean(errors.startsOn)}
             aria-describedby={describedBy("startsOn")}
@@ -160,7 +158,6 @@ export function PeriodForm({
         <FormField id="endsOn" label="Дата окончания" error={errors.endsOn?.message}>
           <Input
             id="endsOn"
-            className="mt-1"
             type="date"
             aria-invalid={Boolean(errors.endsOn)}
             aria-describedby={describedBy("endsOn")}

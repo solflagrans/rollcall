@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { FormCard } from "@/features/groups/components/form-card";
+import { BackLink } from "@/features/groups/components/back-link";
 import { PageHeader } from "@/features/groups/components/page-header";
 import {
   formatPeriodName,
@@ -40,6 +41,7 @@ export default async function NewLessonPage({
         eyebrow={`Группа ${group.name} · ${periodName}`}
         title="Новое занятие"
         description="Укажите параметры занятия и заполните первичную посещаемость."
+        actions={<BackLink href={periodHref} label="В журнал" />}
       />
 
       {disciplines.length > 0 ? (
@@ -63,7 +65,7 @@ export default async function NewLessonPage({
           />
         </FormCard>
       ) : (
-        <section className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
+        <section data-surface="subtle" className="rounded-md bg-surface-subtle p-6 sm:p-8">
           <BookOpenText aria-hidden="true" className="size-8 text-muted-foreground" />
           <h2 className="mt-4 font-heading text-xl font-semibold">
             Сначала добавьте дисциплину

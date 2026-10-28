@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Dialog } from "@/components/ui/dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   ContextMenu,
   contextMenuItemClassName,
@@ -29,6 +30,7 @@ export function DisciplineActionsMenu({
   const router = useRouter();
   const mutation = useActionLock();
   const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState<string>();
   const status = discipline.isArchived ? "archived" : "active";
 
@@ -97,24 +99,11 @@ export function DisciplineActionsMenu({
                 contextMenuItemClassName,
                 "text-destructive hover:text-destructive",
               )}
-              disabled={mutation.isLocked}
-              onClick={() => {
-                if (
-                  !window.confirm(
-                    `Удалить ошибочно созданную дисциплину «${discipline.name}» без возможности восстановления?`,
-                  )
-                ) {
-                  return;
-                }
-                void runAction(
-                  () =>
-                    deleteDisciplineAction(
-                      groupId,
-                      discipline.publicId,
-                      status,
-                    ),
-                  close,
-                );
+            disabled={mutation.isLocked}
+            onClick={() => {
+                close();
+                setError(undefined);
+                setDeleteOpen(true);
               }}
             >
               <Trash2 aria-hidden="true" className="size-4" />
@@ -144,6 +133,36 @@ export function DisciplineActionsMenu({
           onCancel={() => setRenameOpen(false)}
         />
       </Dialog>
+
+      <ConfirmationDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setError(undefined);
+        }}
+        title={`Удалить «${discipline.name}»?`}
+        description="Удаление предназначено только для ошибочно созданной дисциплины без связанных данных."
+        confirmLabel="Удалить дисциплину"
+        pendingLabel="Удаление…"
+        pending={mutation.isLocked}
+        destructive
+        error={error}
+        onConfirm={async () => {
+          setError(undefined);
+          const result = await mutation.run(() =>
+            deleteDisciplineAction(groupId, discipline.publicId, status),
+          );
+          if (!result) return;
+          if (result.status === "success") {
+            setDeleteOpen(false);
+            router.push(result.redirectTo);
+          } else {
+            setError(result.formError);
+          }
+        }}
+      >
+        Это действие нельзя отменить.
+      </ConfirmationDialog>
     </>
   );
 }

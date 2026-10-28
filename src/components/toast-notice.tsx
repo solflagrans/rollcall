@@ -27,11 +27,12 @@ export function ToastNotice({
   return (
     <div
       role={warning ? "alert" : "status"}
-      className="fixed top-4 right-4 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-md border bg-card p-3 shadow-sm"
+      data-surface="raised"
+      className="fixed top-[max(1rem,env(safe-area-inset-top))] right-4 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-md border bg-card p-3 shadow-md"
     >
       <Icon
         aria-hidden="true"
-        className={warning ? "size-5 text-status-late-foreground" : "size-5 text-status-present"}
+        className={warning ? "size-5 text-warning-foreground" : "size-5 text-status-present"}
       />
       <span className="text-sm font-medium">{message}</span>
       <Button

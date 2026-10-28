@@ -1,3 +1,5 @@
+import { BackLink } from "@/features/groups/components/back-link";
+import { FormCard } from "@/features/groups/components/form-card";
 import { PageHeader } from "@/features/groups/components/page-header";
 import { PeriodForm } from "@/features/groups/components/period-form";
 import { formatPeriodName } from "@/features/groups/presentation/period-copy";
@@ -32,6 +34,12 @@ export default async function EditPeriodPage({
       <PageHeader
         eyebrow={`Группа ${group.name}`}
         title={`Изменить «${periodName}»`}
+        actions={
+          <BackLink
+            href={`/groups/${group.publicId}/periods/${period.publicId}`}
+            label="К периоду"
+          />
+        }
       />
       <FormCard label={`Форма редактирования: ${periodName}`}>
         <PeriodForm
@@ -52,4 +60,3 @@ export default async function EditPeriodPage({
     </div>
   );
 }
-import { FormCard } from "@/features/groups/components/form-card";

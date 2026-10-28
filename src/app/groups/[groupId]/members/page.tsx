@@ -52,7 +52,6 @@ export default async function MembersPage({
       <PageHeader
         eyebrow={`Группа ${group.name}`}
         title="Состав группы"
-        description="Управляйте активными и неактивными участниками группы."
         actions={
           <Button asChild>
             <Link href={`/groups/${group.publicId}/members/new`}>Добавить участника</Link>

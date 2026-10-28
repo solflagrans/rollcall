@@ -24,7 +24,7 @@ export function DisciplinePool({
   );
 
   return (
-    <section className="space-y-5" aria-label="Общий пул дисциплин">
+    <section className="space-y-5" aria-label="Дисциплины группы">
       <nav aria-label="Статус дисциплин" className="flex gap-2">
         {(["active", "archived"] as const).map((item) => {
           const selected = item === status;
@@ -35,7 +35,7 @@ export function DisciplinePool({
               href={`/groups/${groupId}/disciplines${item === "archived" ? "?status=archived" : ""}`}
               aria-current={selected ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 items-center rounded-sm border px-3 text-sm font-medium transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                "inline-flex min-h-11 items-center rounded-sm border px-3 text-sm font-medium transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-10",
                 selected
                   ? "border-primary bg-accent text-accent-foreground"
                   : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -60,21 +60,21 @@ export function DisciplinePool({
           ))}
         </div>
       ) : status === "archived" ? (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-6 text-sm text-muted-foreground">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-6 text-sm text-muted-foreground">
           Архив дисциплин пока пуст.
         </div>
       ) : disciplines.length === 0 ? (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-6 sm:p-8">
           <h3 className="font-heading text-lg font-semibold">Создайте первую дисциплину</h3>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Она войдёт в постоянный пул группы и будет доступна для подключения к учебным периодам.
+            Она станет доступна для подключения к учебным периодам группы.
           </p>
           <div className="mt-5">
             <NewDisciplineDialog groupId={groupId} label="Создать дисциплину" />
           </div>
         </div>
       ) : (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-6 text-sm text-muted-foreground">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-6 text-sm text-muted-foreground">
           Активных дисциплин пока нет.
         </div>
       )}

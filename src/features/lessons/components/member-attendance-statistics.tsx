@@ -129,7 +129,7 @@ function AttendanceSummaryCard({ summary }: { summary: AttendanceSummary }) {
 
 function StatisticsEmptyState() {
   return (
-    <div className="rounded-md border border-dashed bg-surface-subtle p-5 sm:p-6">
+    <div data-surface="subtle" className="rounded-md bg-surface-subtle p-5 sm:p-6">
       <h2 className="font-heading text-lg font-semibold">
         Данных для статистики пока недостаточно
       </h2>

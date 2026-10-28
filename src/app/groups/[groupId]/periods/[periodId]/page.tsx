@@ -94,6 +94,7 @@ export default async function AcademicPeriodPage({
             groupId={group.publicId}
             periodType={group.periodType}
             secondary
+            returnPeriodId={period.publicId}
           />
           <PeriodActionsMenu
             groupId={group.publicId}

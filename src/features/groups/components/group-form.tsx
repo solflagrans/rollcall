@@ -85,11 +85,9 @@ export function GroupForm({
         id="group-name"
         label="Название группы"
         error={errors.name?.message}
-        className="space-y-3"
       >
         <Input
           id="group-name"
-          className="mt-[15px]"
           autoComplete="off"
           autoFocus
           aria-invalid={Boolean(errors.name)}
@@ -107,7 +105,6 @@ export function GroupForm({
           <NativeSelect
             id="group-period-type"
             defaultValue=""
-            className="mt-3"
             aria-invalid={Boolean(errors.periodType)}
             aria-describedby={errors.periodType ? "group-period-type-error" : undefined}
             {...register("periodType")}

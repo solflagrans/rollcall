@@ -4,7 +4,7 @@ import { periodStatusLabels } from "@/features/groups/presentation/period-copy";
 
 const statusClasses: Record<PeriodStatus, string> = {
   current: "border-primary/30 bg-accent text-accent-foreground",
-  upcoming: "border-status-late-border bg-status-late-background text-status-late-foreground",
+  upcoming: "border-border-strong bg-secondary text-secondary-foreground",
   completed: "border-border-strong bg-muted text-muted-foreground",
 };
 

@@ -15,7 +15,7 @@ export function PeriodLessonsSection({
   const periodHref = `/groups/${groupId}/periods/${periodId}`;
 
   return (
-    <section className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
+    <section data-surface="subtle" className="rounded-md bg-surface-subtle p-6 sm:p-8">
       <BookOpenCheck aria-hidden="true" className="size-8 text-muted-foreground" />
       <h2 className="mt-4 font-heading text-xl font-semibold">Занятия</h2>
       {hasDisciplines ? (

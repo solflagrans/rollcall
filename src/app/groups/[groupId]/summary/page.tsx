@@ -63,7 +63,6 @@ export default async function GroupSummaryPage({
       <PageHeader
         eyebrow={`Группа ${group.name}`}
         title="Сводная"
-        description="Индивидуальные показатели посещаемости участников"
       />
 
       {selectedPeriod && journal ? (
@@ -117,7 +116,7 @@ export default async function GroupSummaryPage({
           />
         </>
       ) : (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-5 sm:p-6">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-5 sm:p-6">
           <h2 className="font-heading text-lg font-semibold">
             Данных для сводной пока нет
           </h2>

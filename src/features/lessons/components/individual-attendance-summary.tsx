@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { HorizontalScrollArea } from "@/components/ui/horizontal-scroll-area";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   getIndividualAttendanceSummary,
@@ -343,13 +344,15 @@ function SummaryTableFrame({
   children: ReactNode;
 }) {
   return (
-    <div
-      className="mx-auto w-fit max-w-full overflow-x-auto rounded-md border bg-card"
+    <HorizontalScrollArea
+      className="mx-auto w-fit max-w-full overflow-hidden rounded-md border bg-card shadow-xs"
+      viewportClassName="max-w-full"
+      edgeTone="card"
       tabIndex={0}
-      aria-label={`${label}. Таблица прокручивается по горизонтали.`}
+      label={`${label}. Таблица прокручивается по горизонтали.`}
     >
       {children}
-    </div>
+    </HorizontalScrollArea>
   );
 }
 
@@ -454,7 +457,7 @@ function SummaryEmptyState({
   disciplineSelected: boolean;
 }) {
   return (
-    <div className="rounded-md border border-dashed bg-surface-subtle p-5 sm:p-6">
+    <div data-surface="subtle" className="rounded-md bg-surface-subtle p-5 sm:p-6">
       <h2 className="font-heading text-lg font-semibold">
         Данных для сводной пока нет
       </h2>

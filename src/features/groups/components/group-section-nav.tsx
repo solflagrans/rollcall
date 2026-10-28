@@ -11,6 +11,8 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { LinkPendingIndicator } from "@/components/link-pending-indicator";
+import { HorizontalScrollArea } from "@/components/ui/horizontal-scroll-area";
 import { cn } from "@/lib/utils";
 
 export function GroupSectionNav({
@@ -100,6 +102,9 @@ export function GroupSectionNav({
             >
               <Icon aria-hidden="true" className="size-5" />
               {item.label}
+              <span className="ml-auto">
+                <LinkPendingIndicator />
+              </span>
             </Link>
           );
         })}
@@ -108,23 +113,26 @@ export function GroupSectionNav({
   }
 
   return (
-    <nav aria-label="Разделы группы" className="overflow-x-auto md:hidden">
-      <div className="flex min-w-max gap-1 border-b">
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={item.selected ? "page" : undefined}
-            className={cn(
-              "relative flex min-h-11 items-center px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              item.selected &&
-                "text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-primary",
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </div>
+    <nav aria-label="Разделы группы" className="md:hidden">
+      <HorizontalScrollArea viewportClassName="pb-1">
+        <div className="flex min-w-max gap-1 border-b">
+          {items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={item.selected ? "page" : undefined}
+              className={cn(
+                "relative flex min-h-11 items-center gap-1.5 px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                item.selected &&
+                  "text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-primary",
+              )}
+            >
+              {item.label}
+              <LinkPendingIndicator />
+            </Link>
+          ))}
+        </div>
+      </HorizontalScrollArea>
     </nav>
   );
 }

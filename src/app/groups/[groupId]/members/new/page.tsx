@@ -1,4 +1,5 @@
 import { FormCard } from "@/features/groups/components/form-card";
+import { BackLink } from "@/features/groups/components/back-link";
 import { PageHeader } from "@/features/groups/components/page-header";
 import { redirectIfNonCanonical } from "@/features/groups/server/route-context";
 import { MemberForm } from "@/features/members/components/member-form";
@@ -27,6 +28,12 @@ export default async function NewMemberPage({
         eyebrow={`Группа ${group.name}`}
         title={title}
         description="Добавьте студента или заместителя в активный состав группы."
+        actions={
+          <BackLink
+            href={`/groups/${group.publicId}/members`}
+            label="К составу"
+          />
+        }
       />
       <FormCard label={`Форма: ${title.toLowerCase()}`}>
         <MemberForm mode="create" groupId={group.publicId} />

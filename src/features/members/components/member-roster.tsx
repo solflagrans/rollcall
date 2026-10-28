@@ -37,6 +37,7 @@ export function MemberRoster({
     sort,
     direction,
   );
+  const returnTo = membersHref(groupId, { status, sort, direction });
 
   return (
     <section className="space-y-5" aria-label="Состав группы">
@@ -50,7 +51,7 @@ export function MemberRoster({
               href={membersHref(groupId, { status: item, sort, direction })}
               aria-current={selected ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 items-center rounded-sm border px-3 text-sm font-medium transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                "inline-flex min-h-11 items-center rounded-sm border px-3 text-sm font-medium transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-10",
                 selected
                   ? "border-primary bg-accent text-accent-foreground"
                   : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -63,7 +64,7 @@ export function MemberRoster({
       </nav>
 
       {visibleMembers.length === 0 ? (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-6 text-sm text-muted-foreground">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-6 text-sm text-muted-foreground">
           {status === "inactive"
             ? "Неактивных участников пока нет."
             : "Активных участников пока нет."}
@@ -120,6 +121,7 @@ export function MemberRoster({
                     <td className="h-16 px-4 py-3 text-right">
                       <MemberActionsMenu
                         groupId={groupId}
+                        returnTo={returnTo}
                         member={{
                           publicId: member.publicId,
                           firstName: member.firstName,
@@ -165,6 +167,7 @@ export function MemberRoster({
                 </div>
                 <MemberActionsMenu
                   groupId={groupId}
+                  returnTo={returnTo}
                   member={{
                     publicId: member.publicId,
                     firstName: member.firstName,

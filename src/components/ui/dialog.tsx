@@ -38,7 +38,7 @@ export function Dialog({
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       className={cn(
-        "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-hidden rounded-md border bg-card p-0 text-foreground shadow-sm backdrop:bg-foreground/30 open:flex open:flex-col",
+        "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-hidden rounded-md border bg-card p-0 text-foreground shadow-dialog backdrop:bg-foreground/35 open:flex open:flex-col",
         className,
       )}
       onCancel={(event) => {

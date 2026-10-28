@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, Trash2, TriangleAlert } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type MouseEvent } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   ContextMenu,
   contextMenuItemClassName,
@@ -138,46 +139,23 @@ export function LessonActions({
         ) : null}
       </Dialog>
 
-      <Dialog
+      <ConfirmationDialog
         open={deleteOpen}
         onOpenChange={(open) => {
           if (!deletion.isLocked) setDeleteOpen(open);
         }}
         title="Удалить занятие?"
         description={`${formatCalendarDate(lesson.lessonDate)} · ${lessonTypeCopy[lesson.lessonType]} · ${lesson.disciplineName}`}
+        confirmLabel="Удалить занятие"
+        pendingLabel="Удаление…"
+        pending={deletion.isLocked}
+        destructive
+        error={deleteError}
+        onConfirm={deleteLesson}
       >
-        <div className="space-y-5">
-          <FormError message={deleteError} />
-          <div className="flex gap-3 rounded-sm border border-destructive/35 bg-destructive/5 p-4 text-sm">
-            <TriangleAlert
-              aria-hidden="true"
-              className="mt-0.5 size-5 shrink-0 text-destructive"
-            />
-            <p>
-              Вместе с занятием будут безвозвратно удалены все связанные
-              отметки посещаемости и комментарии.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={deletion.isLocked}
-              onClick={() => void deleteLesson()}
-            >
-              {deletion.isLocked ? "Удаление…" : "Удалить занятие"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={deletion.isLocked}
-              onClick={() => setDeleteOpen(false)}
-            >
-              Отмена
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+        Вместе с занятием будут безвозвратно удалены все связанные отметки
+        посещаемости и комментарии.
+      </ConfirmationDialog>
     </>
   );
 }

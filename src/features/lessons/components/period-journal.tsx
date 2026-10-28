@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { HorizontalScrollArea } from "@/components/ui/horizontal-scroll-area";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   getAttendanceProgress,
@@ -198,7 +199,7 @@ export function PeriodJournal({
       </div>
 
       {lessons.length === 0 ? (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-6 sm:p-8">
           <h3 className="font-heading text-lg font-semibold">
             В этом периоде пока нет занятий
           </h3>
@@ -213,15 +214,17 @@ export function PeriodJournal({
           </Button>
         </div>
       ) : visibleLessons.length === 0 ? (
-        <div className="rounded-md border border-dashed bg-surface-subtle p-5 text-sm text-muted-foreground">
+        <div data-surface="subtle" className="rounded-md bg-surface-subtle p-5 text-sm text-muted-foreground">
           По выбранной дисциплине занятий пока нет.
         </div>
       ) : (
-        <div
-          ref={matrixScrollRef}
-          className="max-w-full overflow-x-auto rounded-md border bg-card"
+        <HorizontalScrollArea
+          viewportRef={matrixScrollRef}
+          className="max-w-full overflow-hidden rounded-md border bg-card shadow-xs"
+          viewportClassName="max-w-full"
+          edgeTone="card"
           tabIndex={0}
-          aria-label="Матрица посещаемости. Прокручивается по горизонтали."
+          label="Матрица посещаемости. Прокручивается по горизонтали."
         >
           <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
             <thead ref={matrixHeaderRef} className="relative z-30 will-change-transform">
@@ -240,7 +243,7 @@ export function PeriodJournal({
                       scope="col"
                       className={cn(
                         "w-44 min-w-44 max-w-44 border-r border-b bg-surface-subtle p-0 text-center align-middle last:border-r-0",
-                        incomplete && "bg-status-late-background",
+                        incomplete && "bg-warning-background",
                       )}
                     >
                       <Link
@@ -259,7 +262,7 @@ export function PeriodJournal({
                         </span>
                         {incomplete ? (
                           <span
-                            className="absolute top-2 right-2 size-2 rounded-full bg-status-late-foreground"
+                            className="absolute top-2 right-2 size-2 rounded-full bg-warning"
                             title="Незавершено"
                             aria-label="Незавершено"
                           />
@@ -331,7 +334,7 @@ export function PeriodJournal({
               })}
             </tbody>
           </table>
-        </div>
+        </HorizontalScrollArea>
       )}
 
       <Dialog
@@ -418,7 +421,7 @@ function AttendanceCell({
       {attendance.comment ? (
         <button
           type="button"
-          className="absolute left-1/2 ml-5 inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="absolute left-1/2 ml-5 inline-flex size-11 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 md:size-8"
           aria-label={`Показать комментарий: ${memberName}`}
           title="Есть комментарий"
           onClick={() =>
@@ -452,9 +455,9 @@ function IncompleteLessonsNotice({
   if (lessons.length === 1 && single) {
     const progress = getAttendanceProgress(single.attendance);
     return (
-      <aside className="flex flex-col gap-3 rounded-md border border-status-late-border bg-status-late-background p-4 sm:flex-row sm:items-center sm:justify-between">
+      <aside className="flex flex-col gap-3 rounded-md border border-warning-border bg-warning-background p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="font-medium text-status-late-foreground">
+          <p className="font-medium text-warning-foreground">
             Незавершённое занятие
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -470,8 +473,8 @@ function IncompleteLessonsNotice({
   }
 
   return (
-    <aside className="flex items-center justify-between gap-4 rounded-md border border-status-late-border bg-status-late-background p-4">
-      <p className="font-medium text-status-late-foreground">
+    <aside className="flex items-center justify-between gap-4 rounded-md border border-warning-border bg-warning-background p-4">
+      <p className="font-medium text-warning-foreground">
         Незавершённых занятий: {lessons.length}
       </p>
       <Button type="button" variant="outline" className="bg-background" onClick={onOpenList}>

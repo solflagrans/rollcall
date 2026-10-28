@@ -1,4 +1,5 @@
 import { FormCard } from "@/features/groups/components/form-card";
+import { BackLink } from "@/features/groups/components/back-link";
 import { GroupForm } from "@/features/groups/components/group-form";
 import { PageHeader } from "@/features/groups/components/page-header";
 import { SuccessNotice } from "@/features/groups/components/success-notice";
@@ -14,9 +15,9 @@ export default async function NewGroupPage({
     <div className="mx-auto max-w-2xl space-y-8">
       <SuccessNotice notice={notice} />
       <PageHeader
-        eyebrow="Новая группа"
         title="Создание учебной группы"
         description="Укажите название группы и выберите единую систему учебных периодов."
+        actions={<BackLink href="/groups" label="К группам" />}
       />
       <FormCard label="Форма создания группы">
         <GroupForm mode="create" />

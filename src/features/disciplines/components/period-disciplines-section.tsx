@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import {
   addPeriodDisciplinesAction,
@@ -42,6 +43,7 @@ export function PeriodDisciplinesSection({
   const [creating, setCreating] = useState(false);
   const [pool, setPool] = useState(disciplines);
   const [selectedIds, setSelectedIds] = useState(() => new Set<string>());
+  const [removal, setRemoval] = useState<DisciplineSummary>();
   const [error, setError] = useState<string>();
 
   const assignedIds = useMemo(
@@ -74,16 +76,15 @@ export function PeriodDisciplinesSection({
     setError(result.formError);
   };
 
-  const remove = async (discipline: DisciplineSummary) => {
-    if (!window.confirm(`Убрать дисциплину «${discipline.name}» из этого учебного периода?`)) {
-      return;
-    }
+  const remove = async () => {
+    if (!removal) return;
     setError(undefined);
     const result = await mutation.run(() =>
-      removePeriodDisciplineAction(groupId, periodId, discipline.publicId),
+      removePeriodDisciplineAction(groupId, periodId, removal.publicId),
     );
     if (!result) return;
     if (result.status === "success") {
+      setRemoval(undefined);
       router.push(result.redirectTo);
       return;
     }
@@ -159,7 +160,7 @@ export function PeriodDisciplinesSection({
                   size="icon-sm"
                   disabled={mutation.isLocked}
                   aria-label={`Убрать из периода: ${discipline.name}`}
-                  onClick={() => void remove(discipline)}
+                  onClick={() => setRemoval(discipline)}
                 >
                   <Unlink aria-hidden="true" />
                 </Button>
@@ -167,13 +168,13 @@ export function PeriodDisciplinesSection({
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed bg-surface-subtle p-6 sm:p-8">
+          <div data-surface="subtle" className="rounded-md bg-surface-subtle p-6 sm:p-8">
             <BookOpenText aria-hidden="true" className="size-8 text-muted-foreground" />
             <h3 className="mt-4 font-heading text-lg font-semibold">
               В этом периоде пока нет дисциплин
             </h3>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Добавьте дисциплины из общего пула или создайте первую прямо здесь.
+              Добавьте дисциплины группы или создайте первую прямо здесь.
             </p>
             <Button type="button" className="mt-5" onClick={() => setOpen(true)}>
               <Plus aria-hidden="true" />
@@ -194,7 +195,7 @@ export function PeriodDisciplinesSection({
           }
         }}
         title="Добавить дисциплины"
-        description="Выберите одну или несколько дисциплин из активного пула группы."
+        description="Выберите одну или несколько активных дисциплин группы."
         className="max-w-xl"
       >
         <div className="space-y-5">
@@ -216,7 +217,10 @@ export function PeriodDisciplinesSection({
                       size="icon-sm"
                       disabled={mutation.isLocked}
                       aria-label={`Убрать из периода: ${discipline.name}`}
-                      onClick={() => void remove(discipline)}
+                      onClick={() => {
+                        setOpen(false);
+                        setRemoval(discipline);
+                      }}
                     >
                       <Unlink aria-hidden="true" />
                     </Button>
@@ -276,10 +280,10 @@ export function PeriodDisciplinesSection({
               ))}
             </fieldset>
           ) : (
-            <p className="rounded-sm border border-dashed bg-surface-subtle p-4 text-sm text-muted-foreground">
+            <p className="rounded-sm bg-surface-subtle p-4 text-sm text-muted-foreground">
               {pool.some(({ isArchived }) => !isArchived)
                 ? "Все активные дисциплины уже подключены к этому периоду."
-                : "В активном пуле пока нет дисциплин. Создайте первую выше."}
+                : "В группе пока нет активных дисциплин. Создайте первую выше."}
             </p>
           )}
 
@@ -308,6 +312,25 @@ export function PeriodDisciplinesSection({
           </div>
         </div>
       </Dialog>
+
+      <ConfirmationDialog
+        open={Boolean(removal)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setRemoval(undefined);
+            setError(undefined);
+          }
+        }}
+        title={removal ? `Убрать «${removal.name}» из периода?` : "Убрать дисциплину?"}
+        description="Дисциплина останется в списке дисциплин группы."
+        confirmLabel="Убрать из периода"
+        pendingLabel="Убираем…"
+        pending={mutation.isLocked}
+        error={error}
+        onConfirm={remove}
+      >
+        Связь с текущим учебным периодом будет удалена.
+      </ConfirmationDialog>
     </section>
   );
 }

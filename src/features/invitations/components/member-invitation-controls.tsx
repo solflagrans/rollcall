@@ -1,10 +1,11 @@
 "use client";
 
-import { Copy, Link2, Send, UserPlus, XCircle } from "lucide-react";
+import { Check, Copy, Link2, Send, UserPlus, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -66,6 +67,10 @@ function InviteDialog({
   const [invitePath, setInvitePath] = useState<string>();
   const [linkLoadFinished, setLinkLoadFinished] = useState(false);
   const [error, setError] = useState<string>();
+  const [revokeTarget, setRevokeTarget] = useState<{
+    publicId: string;
+    kind: "direct" | "link";
+  }>();
   const pendingDirect = member.pendingInvitations.find(
     (invitation) => invitation.method === "rollcall_id",
   );
@@ -108,19 +113,37 @@ function InviteDialog({
       : `${window.location.origin}${invitePath}`
     : undefined;
 
+  const revoke = async () => {
+    if (!revokeTarget) return;
+    setError(undefined);
+    const result = await request.run(() =>
+      revokeInvitationAction(groupId, revokeTarget.publicId),
+    );
+    if (!result) return;
+    if (result.status === "error") {
+      setError(result.formError);
+      return;
+    }
+    setRevokeTarget(undefined);
+    setInvitePath(undefined);
+    onOpenChange(false);
+    router.refresh();
+  };
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        onOpenChange(nextOpen);
-        if (!nextOpen) {
-          reset();
-        }
-      }}
-      title="Пригласить участника"
-      description={`${member.lastName} ${member.firstName}. Выберите персональный способ приглашения.`}
-    >
-      <div className="space-y-6">
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          onOpenChange(nextOpen);
+          if (!nextOpen) {
+            reset();
+          }
+        }}
+        title="Пригласить участника"
+        description={`${member.lastName} ${member.firstName}. Выберите персональный способ приглашения.`}
+      >
+        <div className="space-y-6">
         {error ? (
           <p role="alert" className="rounded-sm border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
             {error}
@@ -154,18 +177,12 @@ function InviteDialog({
                 variant="outline"
                 size="sm"
                 disabled={request.isLocked}
-                onClick={() => {
-                  if (!window.confirm("Отозвать приглашение по Rollcall ID?")) return;
-                  void request.run(async () => {
-                    const result = await revokeInvitationAction(groupId, pendingDirect.publicId);
-                    if (result.status === "error") setError(result.formError);
-                    else {
-                      onOpenChange(false);
-                      router.refresh();
-                    }
-                    return result;
-                  });
-                }}
+                onClick={() =>
+                  setRevokeTarget({
+                    publicId: pendingDirect.publicId,
+                    kind: "direct",
+                  })
+                }
               >
                 <XCircle aria-hidden="true" />
                 Отозвать приглашение
@@ -257,19 +274,12 @@ function InviteDialog({
                     variant="outline"
                     size="sm"
                     disabled={request.isLocked}
-                    onClick={() => {
-                      if (!window.confirm("Отозвать персональную ссылку? Она перестанет действовать.")) return;
-                      void request.run(async () => {
-                        const result = await revokeInvitationAction(groupId, pendingLink.publicId);
-                        if (result.status === "error") setError(result.formError);
-                        else {
-                          setInvitePath(undefined);
-                          onOpenChange(false);
-                          router.refresh();
-                        }
-                        return result;
-                      });
-                    }}
+                    onClick={() =>
+                      setRevokeTarget({
+                        publicId: pendingLink.publicId,
+                        kind: "link",
+                      })
+                    }
                   >
                     <XCircle aria-hidden="true" />
                     Отозвать ссылку
@@ -289,18 +299,12 @@ function InviteDialog({
                 variant="outline"
                 size="sm"
                 disabled={request.isLocked}
-                onClick={() => {
-                  if (!window.confirm("Отозвать персональную ссылку? Она перестанет действовать.")) return;
-                  void request.run(async () => {
-                    const result = await revokeInvitationAction(groupId, pendingLink.publicId);
-                    if (result.status === "error") setError(result.formError);
-                    else {
-                      onOpenChange(false);
-                      router.refresh();
-                    }
-                    return result;
-                  });
-                }}
+                onClick={() =>
+                  setRevokeTarget({
+                    publicId: pendingLink.publicId,
+                    kind: "link",
+                  })
+                }
               >
                 <XCircle aria-hidden="true" />
                 Отозвать ссылку
@@ -327,8 +331,30 @@ function InviteDialog({
             </Button>
           )}
         </section>
-      </div>
-    </Dialog>
+        </div>
+      </Dialog>
+      <ConfirmationDialog
+        open={Boolean(revokeTarget)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setRevokeTarget(undefined);
+        }}
+        title={
+          revokeTarget?.kind === "direct"
+            ? "Отозвать приглашение?"
+            : "Отозвать персональную ссылку?"
+        }
+        description={
+          revokeTarget?.kind === "direct"
+            ? "Получатель больше не сможет принять это приглашение."
+            : "Ранее скопированная ссылка перестанет действовать."
+        }
+        confirmLabel="Отозвать"
+        pendingLabel="Отзываем…"
+        pending={request.isLocked}
+        error={error}
+        onConfirm={revoke}
+      />
+    </>
   );
 }
 
@@ -340,20 +366,59 @@ export function MemberInvitationControls({
   member: InvitationMemberView;
 }) {
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   if (member.isConnected) {
     return (
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-primary">Аккаунт подключён</p>
+      <>
+        <div className="flex flex-col items-start gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-status-present-border bg-status-present-background px-2.5 py-1 text-xs font-medium text-status-present-foreground">
+            <Check aria-hidden="true" className="size-3.5" />
+            Подключён
+          </span>
+          {member.connectedProfile ? (
+            <>
+              <p className="text-sm">
+                {member.connectedProfile.firstName} {member.connectedProfile.lastName}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-3"
+                onClick={() => setDetailsOpen(true)}
+              >
+                Детали
+              </Button>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">Профиль недоступен</p>
+          )}
+        </div>
         {member.connectedProfile ? (
-          <>
-            <p className="text-sm">{member.connectedProfile.firstName} {member.connectedProfile.lastName}</p>
-            <p className="font-mono text-xs text-muted-foreground">{member.connectedProfile.rollcallId}</p>
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">Профиль аккаунта недоступен</p>
-        )}
-      </div>
+          <Dialog
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+            title="Подключённый профиль"
+            description={`${member.lastName} ${member.firstName}`}
+          >
+            <dl className="space-y-4 rounded-md bg-surface-subtle p-4">
+              <div>
+                <dt className="text-sm text-muted-foreground">Имя профиля</dt>
+                <dd className="mt-1 font-medium">
+                  {member.connectedProfile.firstName} {member.connectedProfile.lastName}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">Rollcall ID</dt>
+                <dd className="mt-1 font-mono text-sm">
+                  {member.connectedProfile.rollcallId}
+                </dd>
+              </div>
+            </dl>
+          </Dialog>
+        ) : null}
+      </>
     );
   }
 
@@ -361,7 +426,9 @@ export function MemberInvitationControls({
     return (
       <div className="space-y-2">
         <div>
-          <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Приглашение ожидает ответа</p>
+          <p className="text-xs font-medium text-warning-foreground">
+            Приглашение ожидает ответа
+          </p>
           {member.pendingInvitations.map((invitation) => (
             <p key={invitation.publicId} className="mt-1 text-xs text-muted-foreground">
               {invitation.targetProfile

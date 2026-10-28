@@ -31,7 +31,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   if (!details) {
     return (
       <AppShell viewer={viewer}>
-        <section className="mx-auto max-w-xl space-y-4 rounded-md border bg-card p-6 sm:p-8">
+        <section
+          data-surface="raised"
+          className="mx-auto max-w-xl space-y-4 rounded-md border bg-card p-6 shadow-xs sm:p-8"
+        >
           <h1 className="font-heading text-2xl font-semibold">Приглашение недоступно</h1>
           <p className="text-muted-foreground">Ссылка недействительна, отозвана или больше не существует.</p>
           <Button asChild variant="outline"><Link href="/groups">Мои группы</Link></Button>
@@ -48,7 +51,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   return (
     <AppShell viewer={viewer}>
-      <section className="mx-auto max-w-xl space-y-6 rounded-md border bg-card p-6 sm:p-8">
+      <section
+        data-surface="raised"
+        className="mx-auto max-w-xl space-y-6 rounded-md border bg-card p-6 shadow-xs sm:p-8"
+      >
         <header className="space-y-2">
           <p className="text-sm font-medium text-primary">Персональное приглашение</p>
           <h1 className="font-heading text-2xl font-semibold">Подключение к группе</h1>
@@ -61,7 +67,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         {canAccept ? (
           <InviteLinkDecision token={token} />
         ) : (
-          <p role="alert" className="rounded-sm border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          <p
+            role="alert"
+            className="rounded-sm border border-warning-border bg-warning-background p-3 text-sm text-warning-foreground"
+          >
             {details.status === "expired" || details.expiresAt <= new Date()
               ? "Срок действия приглашения истёк."
               : details.member.userId

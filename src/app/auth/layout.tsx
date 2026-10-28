@@ -15,7 +15,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <ThemeToggle />
       </header>
       <main className="app-container flex min-h-[calc(100dvh-4rem)] items-center justify-center py-8">
-        <section className="w-full max-w-md rounded-md border bg-card p-5 sm:p-8">
+        <section
+          data-surface="raised"
+          className="w-full max-w-md rounded-md border bg-card p-5 shadow-xs sm:p-8"
+        >
           {children}
         </section>
       </main>

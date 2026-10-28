@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 const roleClasses: Record<GroupMemberRole, string> = {
   headman: "border-primary/30 bg-accent text-accent-foreground",
-  deputy: "border-status-excused-border bg-status-excused-background text-status-excused-foreground",
+  deputy: "border-border-strong bg-secondary text-secondary-foreground",
   student: "border-border-strong bg-muted text-muted-foreground",
 };
 

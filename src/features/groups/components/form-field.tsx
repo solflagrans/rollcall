@@ -25,13 +25,15 @@ export function FormField({
   return (
     <div className={cn("space-y-2", className)}>
       <Label htmlFor={id}>{label}</Label>
-      {children}
+      <div className="min-w-0 [&>[data-slot=input]]:!mt-0 [&>div>[data-slot=native-select]]:!mt-0">
+        {children}
+      </div>
       {error ? (
         <p id={errorId} role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : warning ? (
-        <p id={warningId} role="status" className="text-sm text-status-late-foreground">
+        <p id={warningId} role="status" className="text-sm text-warning-foreground">
           {warning}
         </p>
       ) : hint ? (

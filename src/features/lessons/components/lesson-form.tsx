@@ -7,6 +7,7 @@ import { useMemo, useState, type MouseEvent } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { LessonAttendanceStatistics } from "@/features/lessons/components/lesson-attendance-statistics";
@@ -33,7 +34,6 @@ import {
 } from "@/features/lessons/schemas";
 import { FormError } from "@/features/groups/components/form-error";
 import { FormField } from "@/features/groups/components/form-field";
-import { formatCalendarDate } from "@/features/groups/presentation/period-copy";
 import { useUnsavedChanges } from "@/features/groups/components/use-unsaved-changes";
 import { lessonTypes } from "@/features/lessons/domain/lessons";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,16 @@ type MemberOption = {
 };
 
 type DraftEntry = AttendanceDraft & MemberOption;
+
+function serializeAttendance(entries: DraftEntry[]): string {
+  return JSON.stringify(
+    entries.map(({ groupMemberId, status, comment }) => ({
+      groupMemberId,
+      status,
+      comment,
+    })),
+  );
+}
 
 function showDatePicker(event: MouseEvent<HTMLInputElement>) {
   event.currentTarget.showPicker?.();
@@ -99,7 +109,17 @@ export function LessonForm({
   const [expandedComments, setExpandedComments] = useState<Set<string>>(
     () => new Set(),
   );
-  const [attendanceChanged, setAttendanceChanged] = useState(false);
+  const [attendanceBaseline, setAttendanceBaseline] = useState(() =>
+    serializeAttendance(
+      members.map((member) => ({
+        ...member,
+        groupMemberId: member.publicId,
+        status: member.status ?? null,
+        comment: member.comment ?? null,
+      })),
+    ),
+  );
+  const [resetOpen, setResetOpen] = useState(false);
   const {
     register,
     handleSubmit,
@@ -116,6 +136,8 @@ export function LessonForm({
   });
 
   const progress = useMemo(() => getAttendanceProgress(attendance), [attendance]);
+  const attendanceChanged = serializeAttendance(attendance) !== attendanceBaseline;
+  const hasUnsavedChanges = isDirty || attendanceChanged;
   useUnsavedChanges(
     !readOnly && (isDirty || attendanceChanged) && !isSubmitting,
   );
@@ -129,7 +151,6 @@ export function LessonForm({
         entry.groupMemberId === memberId ? update(entry) : entry,
       ),
     );
-    setAttendanceChanged(true);
   };
 
   const setStatus = (memberId: string, status: AttendanceStatus) => {
@@ -141,16 +162,12 @@ export function LessonForm({
 
   const fillUnmarked = (status: AttendanceStatus) => {
     setAttendance((current) => fillUnmarkedAttendance(current, status));
-    setAttendanceChanged(true);
   };
 
   const clearAttendance = () => {
-    if (!window.confirm("Сбросить все статусы и комментарии этого занятия?")) {
-      return;
-    }
     setAttendance((current) => resetAttendance(current));
     setExpandedComments(new Set());
-    setAttendanceChanged(true);
+    setResetOpen(false);
   };
 
   const save = async (values: LessonDetailsFormValues) => {
@@ -174,7 +191,7 @@ export function LessonForm({
     if (!result) return;
     if (result.status === "success") {
       reset(values);
-      setAttendanceChanged(false);
+      setAttendanceBaseline(serializeAttendance(attendance));
       router.push(result.redirectTo);
       return;
     }
@@ -198,29 +215,11 @@ export function LessonForm({
     >
       <FormError message={errors.root?.message} />
 
-      <section className="space-y-5" aria-labelledby="lesson-details-title">
-        <h2 id="lesson-details-title" className="font-heading text-xl font-semibold">
-          Занятие
-        </h2>
-        {initialLesson ? (
-          <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <LessonDetail
-                label="Дата занятия"
-                value={formatCalendarDate(initialLesson.lessonDate)}
-              />
-              <LessonDetail
-                label="Дисциплина"
-                value={initialLesson.disciplineName}
-              />
-              <LessonDetail
-                label="Тип занятия"
-                value={lessonTypeCopy[initialLesson.lessonType]}
-              />
-            </div>
-            <LessonAttendanceStatistics attendance={attendance} />
-          </div>
-        ) : (
+      {!initialLesson ? (
+        <section className="space-y-5" aria-labelledby="lesson-details-title">
+          <h2 id="lesson-details-title" className="font-heading text-xl font-semibold">
+            Занятие
+          </h2>
           <div className="grid gap-5 md:grid-cols-3">
             <FormField
               id="lessonDate"
@@ -229,7 +228,6 @@ export function LessonForm({
             >
               <Input
                 id="lessonDate"
-                className="mt-1"
                 type="date"
                 min={startsOn}
                 max={endsOn}
@@ -246,7 +244,6 @@ export function LessonForm({
             >
               <NativeSelect
                 id="disciplineId"
-                className="mt-1"
                 aria-invalid={Boolean(errors.disciplineId)}
                 {...register("disciplineId")}
               >
@@ -268,7 +265,6 @@ export function LessonForm({
             >
               <NativeSelect
                 id="lessonType"
-                className="mt-1"
                 aria-invalid={Boolean(errors.lessonType)}
                 {...register("lessonType")}
               >
@@ -283,8 +279,8 @@ export function LessonForm({
               </NativeSelect>
             </FormField>
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       <section className="space-y-5" aria-labelledby="attendance-title">
         <div className="space-y-4">
@@ -294,7 +290,7 @@ export function LessonForm({
             </h2>
             <p className="mt-1 text-sm text-muted-foreground" aria-live="polite">
               Отмечено {progress.marked} из {progress.total} ·{" "}
-              <span className={progress.completed ? "text-status-present-foreground" : "text-status-late-foreground"}>
+              <span className={progress.completed ? "text-status-present-foreground" : "text-warning-foreground"}>
                 {progress.completed ? "Завершено" : "Незавершено"}
               </span>
             </p>
@@ -326,13 +322,17 @@ export function LessonForm({
             ) : null}
             {!readOnly &&
             (progress.marked > 0 || attendance.some(({ comment }) => comment)) ? (
-              <Button type="button" variant="ghost" size="sm" onClick={clearAttendance}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setResetOpen(true)}>
                 <RotateCcw aria-hidden="true" />
                 Сбросить отметки
               </Button>
             ) : null}
           </div>
         </div>
+
+        {initialLesson ? (
+          <LessonAttendanceStatistics attendance={attendance} />
+        ) : null}
 
         {attendance.length > 0 ? (
           <div className="min-w-0 overflow-hidden rounded-md border bg-card">
@@ -471,7 +471,7 @@ export function LessonForm({
             })}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed bg-surface-subtle p-5 text-sm text-muted-foreground">
+          <div data-surface="subtle" className="rounded-md bg-surface-subtle p-5 text-sm text-muted-foreground">
             {initialLesson
               ? "В слепке состава этого занятия нет участников."
               : "В активном составе нет участников. Занятие будет сохранено без отметок посещаемости."}
@@ -487,11 +487,15 @@ export function LessonForm({
           <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-4 rounded-md border bg-card/95 p-3 shadow-sm backdrop-blur sm:px-4">
             <p className="min-w-0 text-sm text-muted-foreground" aria-live="polite">
               <span className="font-medium text-foreground">
-                Отмечено {progress.marked} из {progress.total}
+                {lessonId && !hasUnsavedChanges
+                  ? "Все изменения сохранены"
+                  : `Отмечено ${progress.marked} из ${progress.total}`}
               </span>
-              <span className="hidden sm:inline">
-                {progress.completed ? " · Занятие завершено" : " · Есть неотмеченные"}
-              </span>
+              {lessonId && !hasUnsavedChanges ? null : (
+                <span className="hidden sm:inline">
+                  {progress.completed ? " · Занятие завершено" : " · Есть неотмеченные"}
+                </span>
+              )}
             </p>
             <Button
               type="submit"
@@ -500,7 +504,11 @@ export function LessonForm({
               aria-label={
                 lessonId ? "Сохранить посещаемость" : "Сохранить занятие"
               }
-              disabled={isSubmitting || submission.isLocked}
+              disabled={
+                isSubmitting ||
+                submission.isLocked ||
+                Boolean(lessonId && !hasUnsavedChanges)
+              }
             >
               {isSubmitting || submission.isLocked
                 ? "Сохранение…"
@@ -518,16 +526,19 @@ export function LessonForm({
           </div>
         </div>
       ) : null}
-    </form>
-  );
-}
 
-function LessonDetail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-sm border bg-surface-subtle px-4 py-3">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 font-medium">{value}</p>
-    </div>
+      <ConfirmationDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Сбросить отметки?"
+        description="Статусы и комментарии будут очищены локально. Изменение вступит в силу после сохранения занятия."
+        confirmLabel="Сбросить отметки"
+        destructive
+        onConfirm={clearAttendance}
+      >
+        После сброса все участники снова будут иметь статус «Не отмечено».
+      </ConfirmationDialog>
+    </form>
   );
 }
 

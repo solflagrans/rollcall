@@ -26,7 +26,7 @@ export function NewDisciplineDialog({
         open={open}
         onOpenChange={setOpen}
         title="Новая дисциплина"
-        description="Дисциплина появится в общем пуле группы."
+        description="Дисциплина появится в списке дисциплин группы."
       >
         <DisciplineNameForm
           groupId={groupId}

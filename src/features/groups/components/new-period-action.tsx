@@ -10,14 +10,18 @@ export function NewPeriodAction({
   periodType,
   prominent = false,
   secondary = false,
+  returnPeriodId,
 }: {
   groupId: string;
   periodType: PeriodType;
   prominent?: boolean;
   secondary?: boolean;
+  returnPeriodId?: string;
 }) {
   const label = periodTypeCopy[periodType].newAction;
-  const href = `/groups/${groupId}/periods/new`;
+  const href = `/groups/${groupId}/periods/new${
+    returnPeriodId ? `?returnPeriod=${encodeURIComponent(returnPeriodId)}` : ""
+  }`;
 
   return (
     <>
